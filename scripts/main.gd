@@ -39,6 +39,9 @@ func _on_level_selected(data: Dictionary) -> void:
 	if level_select:
 		level_select.queue_free()
 		level_select = null
+	if game_screen:
+		game_screen.queue_free()
+		game_screen = null
 
 	game_screen = Node2D.new()
 	game_screen.set_script(load("res://scripts/game.gd"))
