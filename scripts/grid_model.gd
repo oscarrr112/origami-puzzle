@@ -14,9 +14,9 @@ var _history: Array = []
 
 func setup(p_size: int, p_front: Array, p_back: Array, p_target: Array, p_max_folds: int) -> void:
 	size = p_size
-	front = _deep_copy(p_front)
-	back = _deep_copy(p_back)
-	target = _deep_copy(p_target)
+	front = _to_int_grid(p_front)
+	back = _to_int_grid(p_back)
+	target = _to_int_grid(p_target)
 	max_folds = p_max_folds
 	folds_used = 0
 	_history.clear()
@@ -139,6 +139,19 @@ func reset() -> void:
 	back = _deep_copy(state.back)
 	folds_used = 0
 	_history.clear()
+
+
+func _to_int_grid(arr: Array) -> Array:
+	var copy := []
+	for row_data in arr:
+		if row_data is Array:
+			var int_row := []
+			for val in row_data:
+				int_row.append(int(val))
+			copy.append(int_row)
+		else:
+			copy.append(int(row_data))
+	return copy
 
 
 func _deep_copy(arr: Array) -> Array:

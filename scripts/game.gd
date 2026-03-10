@@ -8,7 +8,8 @@ const CELL_GAP := 3
 const TARGET_CELL_SIZE := 35
 const TARGET_GAP := 2
 const GRID_ORIGIN := Vector2(60, 350)
-const TARGET_ORIGIN := Vector2(250, 80)
+const TARGET_ORIGIN := Vector2(60, 80)
+const BACK_ORIGIN := Vector2(420, 80)
 const HUD_Y_OFFSET := 60
 const FOLD_BTN_THICKNESS := 44
 const ANIM_DURATION := 0.3
@@ -31,6 +32,7 @@ var is_animating := false
 
 var cell_rects: Array = []
 var target_rects: Array = []
+var back_rects: Array = []
 var fold_buttons: Array = []
 var fold_lines: Array = []
 var fold_label: Label
@@ -57,6 +59,7 @@ func _build_all() -> void:
 		child.queue_free()
 	cell_rects.clear()
 	target_rects.clear()
+	back_rects.clear()
 	fold_buttons.clear()
 	fold_lines.clear()
 
@@ -64,6 +67,7 @@ func _build_all() -> void:
 	_build_level_title()
 	_build_target_label()
 	_build_target_grid()
+	_build_back_grid()
 	_build_grid_border()
 	_build_main_grid()
 	_build_fold_lines()
@@ -91,7 +95,7 @@ func _build_level_title() -> void:
 
 func _build_target_label() -> void:
 	var lbl := Label.new()
-	lbl.text = "目标图案"
+	lbl.text = "目标"
 	lbl.position = Vector2(TARGET_ORIGIN.x, TARGET_ORIGIN.y - 28)
 	lbl.add_theme_font_size_override("font_size", 18)
 	lbl.add_theme_color_override("font_color", TEXT_COLOR)
@@ -107,16 +111,39 @@ func _build_target_grid() -> void:
 	for row in range(s):
 		var row_arr := []
 		for col in range(s):
-			var rect := ColorRect.new()
-			rect.size = Vector2(TARGET_CELL_SIZE, TARGET_CELL_SIZE)
-			rect.position = Vector2(
-				col * (TARGET_CELL_SIZE + TARGET_GAP),
-				row * (TARGET_CELL_SIZE + TARGET_GAP)
+			var cell := _create_preview_cell(
+				int(model.target[row][col]),
+				Vector2(col * (TARGET_CELL_SIZE + TARGET_GAP), row * (TARGET_CELL_SIZE + TARGET_GAP))
 			)
-			rect.color = COLOR_MAP[int(model.target[row][col])]
-			container.add_child(rect)
-			row_arr.append(rect)
+			container.add_child(cell)
+			row_arr.append(cell)
 		target_rects.append(row_arr)
+
+
+func _build_back_grid() -> void:
+	# 背面标签
+	var lbl := Label.new()
+	lbl.text = "背面"
+	lbl.position = Vector2(BACK_ORIGIN.x, BACK_ORIGIN.y - 28)
+	lbl.add_theme_font_size_override("font_size", 18)
+	lbl.add_theme_color_override("font_color", TEXT_COLOR)
+	add_child(lbl)
+
+	var s := model.size
+	var container := Node2D.new()
+	container.position = BACK_ORIGIN
+	add_child(container)
+
+	for row in range(s):
+		var row_arr := []
+		for col in range(s):
+			var cell := _create_preview_cell(
+				int(model.back[row][col]),
+				Vector2(col * (TARGET_CELL_SIZE + TARGET_GAP), row * (TARGET_CELL_SIZE + TARGET_GAP))
+			)
+			container.add_child(cell)
+			row_arr.append(cell)
+		back_rects.append(row_arr)
 
 
 func _build_grid_border() -> void:
@@ -150,6 +177,26 @@ func _cell_pos(col: int, row: int) -> Vector2:
 		col * (CELL_SIZE + CELL_GAP),
 		row * (CELL_SIZE + CELL_GAP)
 	)
+
+
+func _create_preview_cell(color_id: int, pos: Vector2) -> Panel:
+	var panel := Panel.new()
+	panel.size = Vector2(TARGET_CELL_SIZE, TARGET_CELL_SIZE)
+	panel.position = pos
+	var style := StyleBoxFlat.new()
+	style.bg_color = COLOR_MAP[color_id]
+	style.border_width_top = 1
+	style.border_width_bottom = 1
+	style.border_width_left = 1
+	style.border_width_right = 1
+	style.border_color = Color("#5C4033", 0.3)
+	panel.add_theme_stylebox_override("panel", style)
+	return panel
+
+
+func _set_preview_cell_color(panel: Panel, color_id: int) -> void:
+	var style: StyleBoxFlat = panel.get_theme_stylebox("panel")
+	style.bg_color = COLOR_MAP[color_id]
 
 
 func _build_fold_lines() -> void:
@@ -382,39 +429,112 @@ func _animate_fold(fold_data: Dictionary) -> void:
 	_set_fold_buttons_enabled(false)
 
 	var sources: Array = fold_data.sources
-	var tween := create_tween()
-	tween.set_parallel(true)
-
+	var targets: Array = fold_data.targets
 	var is_vert: bool = fold_data.is_vertical
 	var fpos: int = fold_data.fold_pos
 
+	# 记录源格子的背面颜色（折叠前已保存在 history 里）
+	var history_state: Dictionary = model._history[model._history.size() - 1]
+	var old_back: Array = history_state.back
+
+	# 收集不重复的 source→target 映射，以及源格子背面颜色
+	var fold_pairs := []  # [{src, tgt, back_color}]
+	var seen := {}
 	for i in range(sources.size()):
 		var src: Vector2i = sources[i]
-		var cell: ColorRect = cell_rects[src.y][src.x]
+		var tgt: Vector2i = targets[i]
+		var key := src.y * 100 + src.x
+		if seen.has(key):
+			continue
+		seen[key] = true
+		var back_val := int(old_back[src.y][src.x])
+		fold_pairs.append({"src": src, "tgt": tgt, "back_color": back_val})
 
-		if is_vert:
-			var fold_x := GRID_ORIGIN.x + fpos * (CELL_SIZE + CELL_GAP) - CELL_GAP / 2.0
-			if src.x < fpos:
-				tween.tween_property(cell, "size:x", 0.0, ANIM_DURATION)
-				tween.tween_property(cell, "position:x", fold_x, ANIM_DURATION)
-			else:
-				tween.tween_property(cell, "size:x", 0.0, ANIM_DURATION)
+	# 计算折线像素坐标
+	var fold_px := 0.0
+	if is_vert:
+		fold_px = GRID_ORIGIN.x + fpos * (CELL_SIZE + CELL_GAP) - CELL_GAP / 2.0
+	else:
+		fold_px = GRID_ORIGIN.y + fpos * (CELL_SIZE + CELL_GAP) - CELL_GAP / 2.0
+
+	# 创建临时"翻面"格子（从折线展开，显示背面颜色）
+	var temp_cells := []
+	for pair in fold_pairs:
+		var tgt: Vector2i = pair.tgt
+		var back_color: int = pair.back_color
+		# 只有背面有颜色的才显示翻面效果
+		var display_color: Color
+		if back_color != 0:
+			display_color = COLOR_MAP[back_color]
 		else:
-			var fold_y := GRID_ORIGIN.y + fpos * (CELL_SIZE + CELL_GAP) - CELL_GAP / 2.0
-			if src.y < fpos:
-				tween.tween_property(cell, "size:y", 0.0, ANIM_DURATION)
-				tween.tween_property(cell, "position:y", fold_y, ANIM_DURATION)
-			else:
-				tween.tween_property(cell, "size:y", 0.0, ANIM_DURATION)
+			display_color = COLOR_MAP[0]
 
-	tween.chain().tween_callback(func():
-		_refresh_grid()
-		is_animating = false
-		_set_fold_buttons_enabled(true)
-		_update_fold_label()
-		if model.check_win():
-			_show_win()
-	)
+		var temp := ColorRect.new()
+		temp.color = display_color
+		temp.z_index = 5
+		var target_pos := _cell_pos(tgt.x, tgt.y)
+		if is_vert:
+			# 从折线位置开始，宽度为0
+			temp.position = Vector2(fold_px, target_pos.y)
+			temp.size = Vector2(0, CELL_SIZE)
+		else:
+			# 从折线位置开始，高度为0
+			temp.position = Vector2(target_pos.x, fold_px)
+			temp.size = Vector2(CELL_SIZE, 0)
+		add_child(temp)
+		temp_cells.append({"node": temp, "tgt": tgt, "target_pos": target_pos})
+
+	# ---- 动画：源缩小 + 目标展开 同时进行 ----
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.set_ease(Tween.EASE_IN_OUT)
+	tween.set_trans(Tween.TRANS_SINE)
+
+	var fold_duration := 0.4
+
+	# 源格子向折线缩小
+	for pair in fold_pairs:
+		var src: Vector2i = pair.src
+		var cell: ColorRect = cell_rects[src.y][src.x]
+		if is_vert:
+			if src.x < fpos:
+				tween.tween_property(cell, "size:x", 0.0, fold_duration)
+				tween.tween_property(cell, "position:x", fold_px, fold_duration)
+			else:
+				tween.tween_property(cell, "size:x", 0.0, fold_duration)
+		else:
+			if src.y < fpos:
+				tween.tween_property(cell, "size:y", 0.0, fold_duration)
+				tween.tween_property(cell, "position:y", fold_px, fold_duration)
+			else:
+				tween.tween_property(cell, "size:y", 0.0, fold_duration)
+
+	# 目标位置的临时格子从折线展开
+	for tc in temp_cells:
+		var temp: ColorRect = tc.node
+		var target_pos: Vector2 = tc.target_pos
+		if is_vert:
+			tween.tween_property(temp, "size:x", float(CELL_SIZE), fold_duration)
+			tween.tween_property(temp, "position:x", target_pos.x, fold_duration)
+		else:
+			tween.tween_property(temp, "size:y", float(CELL_SIZE), fold_duration)
+			tween.tween_property(temp, "position:y", target_pos.y, fold_duration)
+
+	await tween.finished
+
+	# 清理临时格子，刷新网格到最终状态
+	for tc in temp_cells:
+		tc.node.queue_free()
+	_refresh_grid()
+	_update_fold_label()
+
+	# 通关检测（延迟显示）
+	_set_fold_buttons_enabled(true)
+	is_animating = false
+
+	if model.check_win():
+		await get_tree().create_timer(0.5).timeout
+		_show_win()
 
 
 func _set_fold_buttons_enabled(enabled: bool) -> void:
@@ -430,6 +550,9 @@ func _refresh_grid() -> void:
 			rect.color = COLOR_MAP[int(model.front[row][col])]
 			rect.size = Vector2(CELL_SIZE, CELL_SIZE)
 			rect.position = _cell_pos(col, row)
+			# 刷新背面小预览
+			if back_rects.size() > row and back_rects[row].size() > col:
+				_set_preview_cell_color(back_rects[row][col], int(model.back[row][col]))
 
 
 func _update_fold_label() -> void:
