@@ -433,12 +433,12 @@ func _animate_fold(fold_data: Dictionary) -> void:
 	var is_vert: bool = fold_data.is_vertical
 	var fpos: int = fold_data.fold_pos
 
-	# 记录源格子的背面颜色（折叠前已保存在 history 里）
+	# 折叠前的状态（已保存在 history 里）
 	var history_state: Dictionary = model._history[model._history.size() - 1]
-	var old_back: Array = history_state.back
+	var old_front: Array = history_state.front
 
-	# 收集不重复的 source→target 映射，以及源格子背面颜色
-	var fold_pairs := []  # [{src, tgt, back_color}]
+	# 收集不重复的 source→target 对
+	var fold_pairs := []
 	var seen := {}
 	for i in range(sources.size()):
 		var src: Vector2i = sources[i]
@@ -447,88 +447,123 @@ func _animate_fold(fold_data: Dictionary) -> void:
 		if seen.has(key):
 			continue
 		seen[key] = true
-		var back_val := int(old_back[src.y][src.x])
-		fold_pairs.append({"src": src, "tgt": tgt, "back_color": back_val})
+		fold_pairs.append({"src": src, "tgt": tgt})
 
-	# 计算折线像素坐标
+	# 折线像素坐标
 	var fold_px := 0.0
 	if is_vert:
 		fold_px = GRID_ORIGIN.x + fpos * (CELL_SIZE + CELL_GAP) - CELL_GAP / 2.0
 	else:
 		fold_px = GRID_ORIGIN.y + fpos * (CELL_SIZE + CELL_GAP) - CELL_GAP / 2.0
 
-	# 创建临时"翻面"格子（从折线展开，显示背面颜色）
-	var temp_cells := []
-	for pair in fold_pairs:
-		var tgt: Vector2i = pair.tgt
-		var back_color: int = pair.back_color
-		# 只有背面有颜色的才显示翻面效果
-		var display_color: Color
-		if back_color != 0:
-			display_color = COLOR_MAP[back_color]
-		else:
-			display_color = COLOR_MAP[0]
-
-		var temp := ColorRect.new()
-		temp.color = display_color
-		temp.z_index = 5
-		var target_pos := _cell_pos(tgt.x, tgt.y)
-		if is_vert:
-			# 从折线位置开始，宽度为0
-			temp.position = Vector2(fold_px, target_pos.y)
-			temp.size = Vector2(0, CELL_SIZE)
-		else:
-			# 从折线位置开始，高度为0
-			temp.position = Vector2(target_pos.x, fold_px)
-			temp.size = Vector2(CELL_SIZE, 0)
-		add_child(temp)
-		temp_cells.append({"node": temp, "tgt": tgt, "target_pos": target_pos})
-
-	# ---- 动画：源缩小 + 目标展开 同时进行 ----
-	var tween := create_tween()
-	tween.set_parallel(true)
-	tween.set_ease(Tween.EASE_IN_OUT)
-	tween.set_trans(Tween.TRANS_SINE)
-
-	var fold_duration := 0.4
-
-	# 源格子向折线缩小
+	# ---- 隐藏原始源格子 ----
 	for pair in fold_pairs:
 		var src: Vector2i = pair.src
-		var cell: ColorRect = cell_rects[src.y][src.x]
+		cell_rects[src.y][src.x].visible = false
+
+	# ---- 创建正面翻页片（显示折叠前的正面颜色）----
+	var flap_front := Node2D.new()
+	flap_front.z_index = 10
+	if is_vert:
+		flap_front.position = Vector2(fold_px, 0)
+	else:
+		flap_front.position = Vector2(0, fold_px)
+	add_child(flap_front)
+
+	for pair in fold_pairs:
+		var src: Vector2i = pair.src
+		var rect := ColorRect.new()
+		rect.color = COLOR_MAP[int(old_front[src.y][src.x])]
+		rect.size = Vector2(CELL_SIZE, CELL_SIZE)
+		var abs_pos := _cell_pos(src.x, src.y)
 		if is_vert:
-			if src.x < fpos:
-				tween.tween_property(cell, "size:x", 0.0, fold_duration)
-				tween.tween_property(cell, "position:x", fold_px, fold_duration)
-			else:
-				tween.tween_property(cell, "size:x", 0.0, fold_duration)
+			rect.position = Vector2(abs_pos.x - fold_px, abs_pos.y)
 		else:
-			if src.y < fpos:
-				tween.tween_property(cell, "size:y", 0.0, fold_duration)
-				tween.tween_property(cell, "position:y", fold_px, fold_duration)
-			else:
-				tween.tween_property(cell, "size:y", 0.0, fold_duration)
+			rect.position = Vector2(abs_pos.x, abs_pos.y - fold_px)
+		flap_front.add_child(rect)
 
-	# 目标位置的临时格子从折线展开
-	for tc in temp_cells:
-		var temp: ColorRect = tc.node
-		var target_pos: Vector2 = tc.target_pos
+	# ---- 创建背面翻页片（显示折叠后的最终颜色）----
+	var flap_back := Node2D.new()
+	flap_back.z_index = 10
+	if is_vert:
+		flap_back.position = Vector2(fold_px, 0)
+		flap_back.scale.x = 0.0
+	else:
+		flap_back.position = Vector2(0, fold_px)
+		flap_back.scale.y = 0.0
+	flap_back.skew = 0.1
+	add_child(flap_back)
+
+	for pair in fold_pairs:
+		var tgt: Vector2i = pair.tgt
+		var rect := ColorRect.new()
+		# 用 model.front 的最终状态（fold() 已经计算好了）
+		rect.color = COLOR_MAP[int(model.front[tgt.y][tgt.x])]
+		rect.size = Vector2(CELL_SIZE, CELL_SIZE)
+		var abs_pos := _cell_pos(tgt.x, tgt.y)
 		if is_vert:
-			tween.tween_property(temp, "size:x", float(CELL_SIZE), fold_duration)
-			tween.tween_property(temp, "position:x", target_pos.x, fold_duration)
+			rect.position = Vector2(abs_pos.x - fold_px, abs_pos.y)
 		else:
-			tween.tween_property(temp, "size:y", float(CELL_SIZE), fold_duration)
-			tween.tween_property(temp, "position:y", target_pos.y, fold_duration)
+			rect.position = Vector2(abs_pos.x, abs_pos.y - fold_px)
+		flap_back.add_child(rect)
 
-	await tween.finished
+	# ---- 创建阴影 ----
+	var shadow := ColorRect.new()
+	shadow.color = Color(0, 0, 0, 0.0)
+	shadow.z_index = 3
+	var grid_total := float(model.size * (CELL_SIZE + CELL_GAP) - CELL_GAP)
+	if is_vert:
+		shadow.position = Vector2(fold_px + 3, GRID_ORIGIN.y + 3)
+		shadow.size = Vector2(grid_total / 2.0, grid_total)
+	else:
+		shadow.position = Vector2(GRID_ORIGIN.x + 3, fold_px + 3)
+		shadow.size = Vector2(grid_total, grid_total / 2.0)
+	add_child(shadow)
 
-	# 清理临时格子，刷新网格到最终状态
-	for tc in temp_cells:
-		tc.node.queue_free()
+	# ---- 动画 ----
+	var fold_duration := 0.5
+	var half := fold_duration / 2.0
+
+	# 阶段1：正面折入（scale → 0），带透视 skew
+	var tween1 := create_tween()
+	tween1.set_parallel(true)
+	tween1.set_ease(Tween.EASE_IN)
+	tween1.set_trans(Tween.TRANS_SINE)
+	if is_vert:
+		tween1.tween_property(flap_front, "scale:x", 0.0, half)
+	else:
+		tween1.tween_property(flap_front, "scale:y", 0.0, half)
+	tween1.tween_property(flap_front, "skew", 0.1, half)
+	tween1.tween_property(shadow, "color:a", 0.12, half)
+
+	await tween1.finished
+
+	# 隐藏正面片
+	flap_front.visible = false
+
+	# 阶段2：背面展开（scale 0 → 1），skew 恢复
+	var tween2 := create_tween()
+	tween2.set_parallel(true)
+	tween2.set_ease(Tween.EASE_OUT)
+	tween2.set_trans(Tween.TRANS_SINE)
+	if is_vert:
+		tween2.tween_property(flap_back, "scale:x", 1.0, half)
+	else:
+		tween2.tween_property(flap_back, "scale:y", 1.0, half)
+	tween2.tween_property(flap_back, "skew", 0.0, half)
+	tween2.tween_property(shadow, "color:a", 0.0, half)
+
+	await tween2.finished
+
+	# ---- 清理 ----
+	flap_front.queue_free()
+	flap_back.queue_free()
+	shadow.queue_free()
+	for pair in fold_pairs:
+		var src: Vector2i = pair.src
+		cell_rects[src.y][src.x].visible = true
 	_refresh_grid()
 	_update_fold_label()
-
-	# 通关检测（延迟显示）
 	_set_fold_buttons_enabled(true)
 	is_animating = false
 
