@@ -54,7 +54,7 @@ func _build_ui() -> void:
 
 	for level in levels_data:
 		var btn := Button.new()
-		btn.text = "%d\n%s" % [level.id, level.name]
+		btn.text = "%d\n%s" % [int(level["id"]), level["name"]]
 		btn.custom_minimum_size = Vector2(110, 110)
 
 		var style := StyleBoxFlat.new()

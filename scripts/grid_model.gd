@@ -33,8 +33,8 @@ func fold(is_vertical: bool, fold_pos: int) -> Dictionary:
 	})
 
 	var result := {
-		"sources": [] as Array[Vector2i],
-		"targets": [] as Array[Vector2i],
+		"sources": [],
+		"targets": [],
 		"is_vertical": is_vertical,
 		"fold_pos": fold_pos
 	}

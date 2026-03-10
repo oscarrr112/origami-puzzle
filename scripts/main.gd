@@ -1,8 +1,8 @@
 extends Node2D
 
 var levels_data: Array = []
-var level_select: Control
-var game_screen: Node2D
+var level_select = null
+var game_screen = null
 
 
 func _ready() -> void:
@@ -51,7 +51,7 @@ func _on_level_selected(data: Dictionary) -> void:
 func _on_level_completed(level_id: int) -> void:
 	var next_idx := -1
 	for i in range(levels_data.size()):
-		if int(levels_data[i].id) == level_id:
+		if int(levels_data[i]["id"]) == level_id:
 			next_idx = i + 1
 			break
 

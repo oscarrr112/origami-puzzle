@@ -42,11 +42,11 @@ func start_level(data: Dictionary) -> void:
 	level_data = data
 	model = GridModel.new()
 	model.setup(
-		int(data.size),
-		data.front,
-		data.back,
-		data.target,
-		int(data.max_folds)
+		int(data["size"]),
+		data["front"],
+		data["back"],
+		data["target"],
+		int(data["max_folds"])
 	)
 	_build_all()
 	_refresh_grid()
@@ -82,7 +82,7 @@ func _build_background() -> void:
 
 func _build_level_title() -> void:
 	var lbl := Label.new()
-	lbl.text = "第 %d 关 · %s" % [level_data.id, level_data.name]
+	lbl.text = "第 %d 关 · %s" % [int(level_data["id"]), level_data["name"]]
 	lbl.position = Vector2(60, 25)
 	lbl.add_theme_font_size_override("font_size", 30)
 	lbl.add_theme_color_override("font_color", TEXT_COLOR)
@@ -334,7 +334,7 @@ func _build_win_popup() -> void:
 	next_btn.add_theme_stylebox_override("normal", next_style)
 	next_btn.add_theme_color_override("font_color", Color.WHITE)
 	next_btn.add_theme_font_size_override("font_size", 24)
-	next_btn.pressed.connect(func(): level_completed.emit(int(level_data.id)))
+	next_btn.pressed.connect(func(): level_completed.emit(int(level_data["id"])))
 	vbox.add_child(next_btn)
 
 	var spacer2 := Control.new()
