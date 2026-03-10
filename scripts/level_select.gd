@@ -76,6 +76,6 @@ func _build_ui() -> void:
 		btn.add_theme_color_override("font_color", TEXT_COLOR)
 		btn.add_theme_font_size_override("font_size", 18)
 
-		var data := level
+		var data = level
 		btn.pressed.connect(func(): level_selected.emit(data))
 		grid.add_child(btn)
