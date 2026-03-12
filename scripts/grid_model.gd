@@ -61,6 +61,8 @@ func _fold_vertical(fold_pos: int, result: Dictionary) -> void:
 			for row in range(size):
 				result.sources.append(Vector2i(col, row))
 				result.targets.append(Vector2i(mirror, row))
+				if front[row][col] != EMPTY:
+					back[row][mirror] = front[row][col]
 				if back[row][col] != EMPTY:
 					front[row][mirror] = back[row][col]
 				front[row][col] = EMPTY
@@ -73,6 +75,8 @@ func _fold_vertical(fold_pos: int, result: Dictionary) -> void:
 			for row in range(size):
 				result.sources.append(Vector2i(col, row))
 				result.targets.append(Vector2i(mirror, row))
+				if front[row][col] != EMPTY:
+					back[row][mirror] = front[row][col]
 				if back[row][col] != EMPTY:
 					front[row][mirror] = back[row][col]
 				front[row][col] = EMPTY
@@ -92,6 +96,8 @@ func _fold_horizontal(fold_pos: int, result: Dictionary) -> void:
 			for col in range(size):
 				result.sources.append(Vector2i(col, row))
 				result.targets.append(Vector2i(col, mirror))
+				if front[row][col] != EMPTY:
+					back[mirror][col] = front[row][col]
 				if back[row][col] != EMPTY:
 					front[mirror][col] = back[row][col]
 				front[row][col] = EMPTY
@@ -104,6 +110,8 @@ func _fold_horizontal(fold_pos: int, result: Dictionary) -> void:
 			for col in range(size):
 				result.sources.append(Vector2i(col, row))
 				result.targets.append(Vector2i(col, mirror))
+				if front[row][col] != EMPTY:
+					back[mirror][col] = front[row][col]
 				if back[row][col] != EMPTY:
 					front[mirror][col] = back[row][col]
 				front[row][col] = EMPTY
