@@ -29,6 +29,8 @@ Both diagonals (`\` and `/`) divide each cell into 4 kite-shaped quadrants:
 - Full cell: `[c, c, c, c]` → normalize to `c` (int)
 - All empty: `[0, 0, 0, 0]` → normalize to `0` (int)
 
+**Normalization policy:** The grid model stores cells as either `int` (full/empty) or `Array` (quadrants). Normalization (`[c,c,c,c]` → `int c`, `[0,0,0,0]` → `int 0`) is applied at the end of each fold operation, after all transfers and merges are complete. This keeps internal representation clean and simplifies win-check comparisons. During a fold's transfer phase, all cells are temporarily treated as 4-quadrant arrays.
+
 ## Fold Types
 
 ### V and H folds (existing)
@@ -43,18 +45,24 @@ Parametrized by direction (`\` or `/`) and offset:
 - `d_bs` (`\` direction): offset = col - row. Offset 0 = main diagonal.
 - `d_fs` (`/` direction): offset = col + row. Offset size-1 = main anti-diagonal.
 
-**Source/target determination** (same convention as V/H — smaller side folds):
-- `d_bs` offset=k: source = cells where `col - row > k` (upper-right region), target = `col - row < k`.
-- `d_fs` offset=k: source = cells where `col + row < k` (upper-left region), target = `col + row > k`.
-- Equal sides (e.g., main diagonal): upper-right folds onto lower-left for `\`, upper-left folds onto lower-right for `/`.
+**Source/target determination** (fixed direction — source always folds toward the diagonal line):
+- `d_bs` offset=k: source = cells where `col - row > k` (upper-right region), target = `col - row < k` (lower-left region). Upper-right always folds onto lower-left.
+- `d_fs` offset=k: source = cells where `col + row < k` (upper-left region), target = `col + row > k` (lower-right region). Upper-left always folds onto lower-right.
+
+**Valid offset ranges:**
+- `d_bs`: `k` in `[-(size-2), size-2]`. `k=0` is the main diagonal. Positive k shifts toward upper-right, negative toward lower-left.
+- `d_fs`: `k` in `[1, 2*(size-1)-1]`. `k=size-1` is the main anti-diagonal.
+- Offsets at the extremes (`-(size-1)` or `size-1` for `d_bs`, `0` or `2*(size-1)` for `d_fs`) produce zero source cells and are invalid fold lines.
 
 **Cell transforms when moved by diagonal fold:**
 - **`\` fold**: `[T,R,B,L]` → `[L,B,R,T]` (T↔L, R↔B)
 - **`/` fold**: `[T,R,B,L]` → `[R,T,L,B]` (T↔R, B↔L)
 
 **Position mapping:**
-- `\` fold: source `(r, c)` → target `(c - offset, r + offset)` (reflection across `\` line)
-- `/` fold: source `(r, c)` → target `(offset - c, offset - r)` (reflection across `/` line)
+- `\` fold at offset k: source `(r, c)` → target `(c - k, r + k)` (reflection across `\` line)
+- `/` fold at offset k: source `(r, c)` → target `(k - c, k - r)` (reflection across `/` line)
+
+**Bounds check:** After computing the target position, discard any mapping where `tr < 0 || tr >= size || tc < 0 || tc >= size`. This naturally occurs for off-center diagonal folds where the source region extends beyond the grid's reflection.
 
 **Cells on the fold line** get split:
 - For `\` fold at offset k: cells where `col - row == k`
@@ -76,7 +84,7 @@ For each source cell `(sr, sc)` mapping to target `(tr, tc)`:
 
 For cells on the fold line, this applies per-quadrant (source quadrants transfer, target quadrants stay).
 
-**Merge rule:** per-quadrant, incoming non-zero overwrites existing.
+**Merge rule:** per-quadrant, incoming non-zero overwrites existing. This is intentional — when a fold-line cell's source quadrants transfer onto an existing target cell, the incoming color takes priority. Level designers should account for this overwrite behavior.
 
 ## Rendering
 
@@ -114,7 +122,9 @@ Each level's `available_folds` determines which fold lines and buttons appear:
   "target": [[0,0,[2,2,1,1],0],[0,0,[2,2,1,1],0],[0,0,0,0],[0,0,0,0]],
   "folds": [
     {"type": "v", "pos": 2},
-    {"type": "d_bs", "offset": 0}
+    {"type": "h", "pos": 1},
+    {"type": "d_bs", "offset": 0},
+    {"type": "d_fs", "offset": 3}
   ]
 }
 ```
