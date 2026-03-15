@@ -325,24 +325,35 @@ func _build_diagonal_fold_line(fold_type: String, offset: int, total: float) -> 
 	var is_bs := (fold_type == "d_bs")
 	var s := model.size
 	var step := CELL_SIZE + CELL_GAP
+	var half := CELL_SIZE / 2.0
+
+	# Build line through cell diagonals (not grid corners).
+	# For d_bs (\): passes through each cell's top-left → bottom-right
+	# For d_fs (/): passes through each cell's top-right → bottom-left
+	# Collect the first and last cell on the fold line to get the overall line endpoints.
+	var first_cell := Vector2i(-1, -1)
+	var last_cell := Vector2i(-1, -1)
+	for row in range(s):
+		for col in range(s):
+			var val: int = (col - row) if is_bs else (col + row)
+			if val != offset:
+				continue
+			if first_cell.x == -1:
+				first_cell = Vector2i(col, row)
+			last_cell = Vector2i(col, row)
+
+	if first_cell.x == -1:
+		return
 
 	var points: Array[Vector2] = []
-	for i in range(s + 1):
-		var r_f: float
-		var c_f: float
-		if is_bs:
-			r_f = float(i)
-			c_f = float(i) + float(offset)
-		else:
-			r_f = float(i)
-			c_f = float(offset) - float(i)
-
-		if c_f < 0.0 or c_f > float(s) or r_f < 0.0 or r_f > float(s):
-			continue
-
-		var px := GRID_ORIGIN.x + c_f * step
-		var py := GRID_ORIGIN.y + r_f * step
-		points.append(Vector2(px, py))
+	if is_bs:
+		# \ direction: top-left of first cell to bottom-right of last cell
+		points.append(_cell_pos(first_cell.x, first_cell.y))
+		points.append(_cell_pos(last_cell.x, last_cell.y) + Vector2(CELL_SIZE, CELL_SIZE))
+	else:
+		# / direction: top-right of first cell to bottom-left of last cell
+		points.append(_cell_pos(first_cell.x, first_cell.y) + Vector2(CELL_SIZE, 0))
+		points.append(_cell_pos(last_cell.x, last_cell.y) + Vector2(0, CELL_SIZE))
 
 	if points.size() < 2:
 		return
