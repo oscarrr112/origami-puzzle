@@ -123,7 +123,7 @@ def complexity_score(solutions, fold_defs, front, back, size):
     score = 0
     sol = solutions[0]  # 取第一个解
 
-    # 顺序依赖 (0-15): 测试解法的所有排列，看结果是否相同
+    # 顺序依赖 (0-20): 测试解法的所有排列，看结果是否相同
     if len(sol) >= 2:
         base_result = apply_folds(front, back, sol, size)
         order_matters = False
@@ -131,7 +131,7 @@ def complexity_score(solutions, fold_defs, front, back, size):
             if apply_folds(front, back, list(perm), size) != base_result:
                 order_matters = True
                 break
-        score += 15 if order_matters else 3
+        score += 20 if order_matters else 3
 
     # 背面转移 (0-10): 解法中是否有折叠导致背面非零内容出现在正面
     has_transfer = any(involves_back_transfer(fold, front, back, size) for fold in sol)
