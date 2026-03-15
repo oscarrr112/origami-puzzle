@@ -664,17 +664,20 @@ CHAPTER_CONFIGS = [
     {"chapter": 5, "ids": range(41, 51), "size": 4, "max_folds": 3,
      "colors": [1, 2, 3], "front_d": 0.2, "back_d": 0.25,
      "max_sols": 3, "min_cells": 3, "transfer": False,
-     "include_diag": True, "diag_ratio": 0.4, "min_quality": 55},
+     "include_diag": True, "diag_ratio": 0.4, "max_fold_defs": 8,
+     "min_quality": 55},
     # Ch6: 三折挑战
     {"chapter": 6, "ids": range(51, 61), "size": 4, "max_folds": 3,
      "colors": [1, 2, 3], "front_d": 0.2, "back_d": 0.25,
      "max_sols": 3, "min_cells": 4, "transfer": True,
-     "include_diag": True, "diag_ratio": 0.35, "min_quality": 60},
+     "include_diag": True, "diag_ratio": 0.35, "max_fold_defs": 8,
+     "min_quality": 60},
     # Ch7: 新色登场
     {"chapter": 7, "ids": range(61, 71), "size": 4, "max_folds": 4,
      "colors": [1, 2, 3, 4], "front_d": 0.2, "back_d": 0.2,
      "max_sols": 3, "min_cells": 4, "transfer": True,
-     "include_diag": True, "diag_ratio": 0.3, "min_quality": 60},
+     "include_diag": True, "diag_ratio": 0.3, "max_fold_defs": 8,
+     "min_quality": 60},
     # Ch8: 大网格入门
     {"chapter": 8, "ids": range(71, 81), "size": 5, "max_folds": 3,
      "colors": [1, 2, 3], "front_d": 0.2, "back_d": 0.25,
@@ -688,11 +691,11 @@ CHAPTER_CONFIGS = [
      "include_diag": True, "diag_ratio": 0.3, "max_fold_defs": 8,
      "min_quality": 60},
     # Ch10: 终极挑战
-    {"chapter": 10, "ids": range(91, 101), "size": 5, "max_folds": 6,
+    {"chapter": 10, "ids": range(91, 101), "size": 5, "max_folds": 4,
      "colors": [1, 2, 3, 4, 5], "front_d": 0.2, "back_d": 0.2,
-     "max_sols": 2, "min_cells": 5, "transfer": True,
+     "max_sols": 3, "min_cells": 4, "transfer": False,
      "include_diag": True, "diag_ratio": 0.3, "max_fold_defs": 8,
-     "min_quality": 60},
+     "min_quality": 55},
 ]
 
 CHAPTER_NAMES = {
@@ -773,6 +776,7 @@ def generate_all_levels_legacy(seed=42):
 
 def generate_all_levels(seed=42):
     """生成全部 100 关"""
+    from handcrafted_levels import HANDCRAFTED
     random.seed(seed)
     levels = []
 
@@ -790,6 +794,25 @@ def generate_all_levels(seed=42):
         name_idx = 0
 
         for level_id in ch_cfg["ids"]:
+            # 手工关卡
+            if level_id in HANDCRAFTED:
+                lv = HANDCRAFTED[level_id]
+                lv_data = {
+                    "id": level_id,
+                    "name": lv["name"],
+                    "size": lv["size"],
+                    "max_folds": lv["max_folds"],
+                    "front": lv["front"],
+                    "back": lv["back"],
+                    "target": lv["target"],
+                }
+                if "folds" in lv:
+                    lv_data["folds"] = lv["folds"]
+                levels.append(lv_data)
+                print(f"  Level {level_id}: {lv['name']} (handcrafted)", flush=True)
+                name_idx += 1
+                continue
+
             # 生成关卡
             # 决定是否包含对角折叠
             use_diag = include_diag and random.random() < diag_ratio
@@ -806,12 +829,21 @@ def generate_all_levels(seed=42):
             else:
                 folds = max_folds
 
+            # 根据搜索空间大小调整尝试次数
+            search_space = len(fold_defs) ** folds
+            if search_space > 10000:
+                gen_attempts = 500
+            elif search_space > 1000:
+                gen_attempts = 2000
+            else:
+                gen_attempts = 5000
+
             result = generate_level(
                 size=size, max_folds=folds, colors=colors,
                 front_density=ch_cfg["front_d"], back_density=ch_cfg["back_d"],
                 max_solutions=ch_cfg["max_sols"], min_target_cells=ch_cfg["min_cells"],
                 require_transfer=ch_cfg["transfer"], fold_defs=fold_defs,
-                min_quality=min_quality,
+                min_quality=min_quality, attempts=gen_attempts,
             )
 
             if result is None:
@@ -822,7 +854,7 @@ def generate_all_levels(seed=42):
                     max_solutions=ch_cfg["max_sols"] + 2,
                     min_target_cells=max(1, ch_cfg["min_cells"] - 1),
                     require_transfer=False, fold_defs=fold_defs,
-                    min_quality=0,
+                    min_quality=0, attempts=gen_attempts,
                 )
 
             if result is None:
@@ -843,7 +875,7 @@ def generate_all_levels(seed=42):
                 lv_data["folds"] = fold_defs
 
             levels.append(lv_data)
-            print(f"  Level {level_id}: {name} (generated, quality={result['quality']})")
+            print(f"  Level {level_id}: {name} (generated, quality={result['quality']})", flush=True)
             name_idx += 1
 
     return levels
