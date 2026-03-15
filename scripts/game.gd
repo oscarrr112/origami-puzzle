@@ -334,15 +334,18 @@ func _build_diagonal_fold_line(fold_type: String, offset: int, total: float) -> 
 	add_child(line)
 	fold_lines.append(line)
 
-	# Two endpoint buttons (avoids overlapping V/H buttons)
 	var def := {"type": fold_type, "offset": offset}
 	var line_ref := line
-	var btn_size := Vector2(FOLD_BTN_THICKNESS, FOLD_BTN_THICKNESS)
-	for pt in [points[0], points[points.size() - 1]]:
+
+	# Place a clickable button at each segment along the diagonal line
+	for i in range(points.size() - 1):
+		var p1 := points[i]
+		var p2 := points[i + 1]
+		var mid := (p1 + p2) / 2.0
 		var btn := Button.new()
 		btn.flat = true
-		btn.position = pt - btn_size / 2.0
-		btn.size = btn_size
+		btn.position = Vector2(min(p1.x, p2.x) - 15, min(p1.y, p2.y) - 15)
+		btn.size = Vector2(abs(p2.x - p1.x) + 30, abs(p2.y - p1.y) + 30)
 		btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		btn.mouse_filter = Control.MOUSE_FILTER_STOP
 		btn.pressed.connect(func(): _on_fold(def))
@@ -350,6 +353,18 @@ func _build_diagonal_fold_line(fold_type: String, offset: int, total: float) -> 
 		btn.mouse_exited.connect(func(): line_ref.default_color = FOLD_LINE_COLOR; line_ref.width = 2.0)
 		add_child(btn)
 		fold_buttons.append(btn)
+
+	# Visible indicator circles at endpoints
+	for pt in [points[0], points[points.size() - 1]]:
+		var indicator := Polygon2D.new()
+		var circle_pts := PackedVector2Array()
+		var radius := 8.0
+		for j in range(12):
+			var angle := j * TAU / 12.0
+			circle_pts.append(pt + Vector2(cos(angle), sin(angle)) * radius)
+		indicator.polygon = circle_pts
+		indicator.color = FOLD_LINE_COLOR
+		add_child(indicator)
 
 
 func _build_hud() -> void:
