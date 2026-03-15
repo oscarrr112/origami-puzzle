@@ -204,24 +204,28 @@ def all_fold_sequences(size: int, max_folds: int):
             yield list(seq)
 
 
-def find_solutions(front, back, target, size, max_folds):
-    """Find all fold sequences that solve the level."""
+def find_solutions(front, back, target, size, max_folds, fold_defs=None):
+    """寻找所有有效解（支持 V/H 和对角折叠）"""
+    if fold_defs is None:
+        fold_defs = all_fold_defs(size, include_diag=False)
     solutions = []
-    for seq in all_fold_sequences(size, max_folds):
-        f, _ = apply_folds(front, back, size, seq)
-        if check_win(f, target, size):
+    for seq in itertools.product(fold_defs, repeat=max_folds):
+        seq = list(seq)
+        f, _ = apply_folds_any(front, back, size, seq)
+        if f == target:
             solutions.append(seq)
     return solutions
 
 
-def find_minimal_solutions(front, back, target, size, max_folds):
-    """Find solutions that use exactly max_folds (not fewer)."""
-    all_sols = find_solutions(front, back, target, size, max_folds)
-    # Filter: no shorter solution should exist
-    shorter_sols = find_solutions(front, back, target, size, max_folds - 1) if max_folds > 1 else []
-    if shorter_sols:
-        return []  # Level can be solved in fewer folds
-    return all_sols
+def find_minimal_solutions(front, back, target, size, max_folds, fold_defs=None):
+    """寻找恰好使用 max_folds 步的解（无更短解存在）"""
+    if fold_defs is None:
+        fold_defs = all_fold_defs(size, include_diag=False)
+    # 检查是否有更短的解
+    for k in range(1, max_folds):
+        if find_solutions(front, back, target, size, k, fold_defs):
+            return []  # 存在更短解，不返回
+    return find_solutions(front, back, target, size, max_folds, fold_defs)
 
 
 def fmt_fold(fold):
