@@ -173,6 +173,25 @@ def check_win(front, target, size):
     return True
 
 
+def all_fold_defs(size, include_diag=False):
+    """列出所有可能的折叠定义"""
+    folds = []
+    for pos in range(1, size):
+        folds.append({"type": "v", "pos": pos})
+        folds.append({"type": "h", "pos": pos})
+    if include_diag:
+        for offset in range(-(size - 2), size - 1):
+            folds.append({"type": "d_bs", "offset": offset})
+        for offset in range(1, 2 * (size - 1)):
+            folds.append({"type": "d_fs", "offset": offset})
+    return folds
+
+
+def all_any_fold_sequences(fold_defs, max_folds):
+    """生成所有可能的折叠序列（基于给定的折叠定义列表）"""
+    return list(itertools.product(fold_defs, repeat=max_folds))
+
+
 def all_fold_sequences(size: int, max_folds: int):
     """Generate all possible fold sequences up to max_folds length."""
     fold_options = []
