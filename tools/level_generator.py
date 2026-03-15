@@ -432,13 +432,13 @@ def quality_score(front, back, target, fold_defs, solutions, size):
     return vs + cs + ns
 
 
-def generate_level(size: int, max_folds: int, colors: list,
-                   front_density: float = 0.2, back_density: float = 0.3,
-                   max_solutions: int = 5, min_target_cells: int = 2,
-                   require_transfer: bool = False,
-                   attempts: int = 5000) -> Optional[Dict]:
+def generate_level_legacy(size: int, max_folds: int, colors: list,
+                          front_density: float = 0.2, back_density: float = 0.3,
+                          max_solutions: int = 5, min_target_cells: int = 2,
+                          require_transfer: bool = False,
+                          attempts: int = 5000) -> Optional[Dict]:
     """
-    Generate a random level with desired properties.
+    Legacy: Generate a random level with desired properties (V/H only, tuple-based).
     Returns dict with front, back, target, solution or None.
     """
     for _ in range(attempts):
@@ -511,6 +511,89 @@ def generate_level(size: int, max_folds: int, colors: list,
                 "max_folds": max_folds,
                 "solutions": seqs,
                 "num_solutions": num_sols
+            }
+    return None
+
+
+def generate_level(size, max_folds, colors, front_density=0.2,
+                   back_density=0.3, max_solutions=3, min_target_cells=2,
+                   require_transfer=False, fold_defs=None, min_quality=60,
+                   attempts=5000):
+    """
+    生成单个关卡。
+    fold_defs: 可用折叠定义列表。None = 仅 V/H（向后兼容）
+    min_quality: 最低质量评分（0=不检查）
+    """
+    if fold_defs is None:
+        fold_defs = all_fold_defs(size, include_diag=False)
+
+    for _ in range(attempts):
+        front = random_grid(size, colors, front_density)
+        back = random_grid(size, colors, back_density)
+
+        target_map = {}
+        # 枚举所有 max_folds 长度的序列
+        for seq in itertools.product(fold_defs, repeat=max_folds):
+            seq = list(seq)
+            f, _ = apply_folds_any(front, back, size, seq)
+            key = str(f)
+            if key not in target_map:
+                target_map[key] = (f, [seq])
+            else:
+                target_map[key][1].append(seq)
+
+        for key, (target, seqs) in target_map.items():
+            # 过滤: 非空目标
+            non_zero = sum(1 for r in target for c in r
+                          if (c if not isinstance(c, list) else max(c)) != 0)
+            if non_zero < min_target_cells:
+                continue
+            # 过滤: 解数限制
+            if len(seqs) > max_solutions:
+                continue
+            # 过滤: 不能用更少步骤解决
+            has_shorter = False
+            for k in range(1, max_folds):
+                for short_seq in itertools.product(fold_defs, repeat=k):
+                    sf, _ = apply_folds_any(front, back, size, list(short_seq))
+                    if sf == target:
+                        has_shorter = True
+                        break
+                if has_shorter:
+                    break
+            if has_shorter:
+                continue
+            # 过滤: 背面转移
+            if require_transfer:
+                has_t = False
+                for seq in seqs[:1]:
+                    tf, tb = copy.deepcopy(front), copy.deepcopy(back)
+                    for fold_def in seq:
+                        old_f = copy.deepcopy(tf)
+                        tf, tb = fold_grid_any(tf, tb, size, fold_def)
+                        for r in range(size):
+                            for ci in range(size):
+                                for qi in range(4):
+                                    nv = cell_to_quads(tf[r][ci])[qi]
+                                    ov = cell_to_quads(old_f[r][ci])[qi]
+                                    if nv != 0 and ov == 0:
+                                        has_t = True
+                if not has_t:
+                    continue
+            # 过滤: 质量评分
+            if min_quality > 0:
+                qs = quality_score(front, back, target, fold_defs, seqs, size)
+                if qs < min_quality:
+                    continue
+            else:
+                qs = 0
+
+            return {
+                "front": front,
+                "back": back,
+                "target": target,
+                "solutions": seqs,
+                "quality": qs,
             }
     return None
 
