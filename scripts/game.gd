@@ -158,6 +158,27 @@ func _build_grid_border() -> void:
 	border.editor_only = false
 	add_child(border)
 
+	# Inner grid lines so cell structure is always visible
+	var grid_color := Color("#5C4033", 0.08)
+	for i in range(1, s):
+		var x := GRID_ORIGIN.x + i * (CELL_SIZE + CELL_GAP) - CELL_GAP / 2.0 - 1
+		var vline := Line2D.new()
+		vline.add_point(Vector2(x, GRID_ORIGIN.y))
+		vline.add_point(Vector2(x, GRID_ORIGIN.y + total))
+		vline.width = 1.0
+		vline.default_color = grid_color
+		vline.z_index = -1
+		add_child(vline)
+
+		var y := GRID_ORIGIN.y + i * (CELL_SIZE + CELL_GAP) - CELL_GAP / 2.0 - 1
+		var hline := Line2D.new()
+		hline.add_point(Vector2(GRID_ORIGIN.x, y))
+		hline.add_point(Vector2(GRID_ORIGIN.x + total, y))
+		hline.width = 1.0
+		hline.default_color = grid_color
+		hline.z_index = -1
+		add_child(hline)
+
 
 func _build_main_grid() -> void:
 	var s := model.size
