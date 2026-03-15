@@ -325,13 +325,10 @@ func _transfer_fold_line_cell(row: int, col: int, fold_type: String,
 	result.fold_line_cells.append(Vector2i(col, row))
 
 	var src_quads: Array[int]
-	var tgt_quads: Array[int]
 	if is_bs:
 		src_quads = [Q_T, Q_R]
-		tgt_quads = [Q_B, Q_L]
 	else:
 		src_quads = [Q_T, Q_L]
-		tgt_quads = [Q_B, Q_R]
 
 	var of := cell_to_quads(orig_front[row][col])
 	var ob := cell_to_quads(orig_back[row][col])
