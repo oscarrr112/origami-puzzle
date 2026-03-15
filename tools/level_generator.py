@@ -262,6 +262,176 @@ def grid_complexity(grid, size):
     return sum(1 for r in range(size) for c in range(size) if grid[r][c] != EMPTY)
 
 
+# ── Quality Scoring ─────────────────────────────────────────────────
+
+def visual_change_score(front, target, size):
+    """视觉变化度评分 (0-30)"""
+    total_quads = size * size * 4
+    changed = 0
+    for r in range(size):
+        for c in range(size):
+            fq = cell_to_quads(front[r][c])
+            tq = cell_to_quads(target[r][c])
+            changed += sum(1 for i in range(4) if fq[i] != tq[i])
+    ratio = changed / total_quads
+
+    # 变化比例得分 (0-20)
+    if 0.3 <= ratio <= 0.7:
+        ratio_score = 20
+    elif ratio < 0.1 or ratio > 0.9:
+        ratio_score = 5
+    else:
+        ratio_score = 12
+
+    # 对称性加分 (0-10)
+    sym_score = 0
+    if _is_h_symmetric(target, size):
+        sym_score += 4
+    if _is_v_symmetric(target, size):
+        sym_score += 3
+    if _is_rot180_symmetric(target, size):
+        sym_score += 3
+
+    return ratio_score + sym_score
+
+
+def _is_h_symmetric(grid, size):
+    for r in range(size):
+        for c in range(size // 2):
+            if cell_to_quads(grid[r][c]) != cell_to_quads(grid[r][size - 1 - c]):
+                return False
+    return True
+
+
+def _is_v_symmetric(grid, size):
+    for r in range(size // 2):
+        for c in range(size):
+            if cell_to_quads(grid[r][c]) != cell_to_quads(grid[size - 1 - r][c]):
+                return False
+    return True
+
+
+def _is_rot180_symmetric(grid, size):
+    for r in range(size):
+        for c in range(size):
+            if cell_to_quads(grid[r][c]) != cell_to_quads(grid[size - 1 - r][size - 1 - c]):
+                return False
+    return True
+
+
+def complexity_score(solutions, front, back, size):
+    """解题复杂度评分 (0-40)"""
+    score = 0
+    sol = solutions[0]
+
+    # 顺序依赖 (0-20)
+    if len(sol) >= 2:
+        base_f, _ = apply_folds_any(front, back, size, sol)
+        order_matters = False
+        for perm in itertools.islice(itertools.permutations(sol), 120):
+            pf, _ = apply_folds_any(front, back, size, list(perm))
+            if pf != base_f:
+                order_matters = True
+                break
+        score += 20 if order_matters else 3
+
+    # 背面转移 (0-10)
+    f_copy, b_copy = copy.deepcopy(front), copy.deepcopy(back)
+    for fold_def in sol:
+        old_front = copy.deepcopy(f_copy)
+        f_copy, b_copy = fold_grid_any(f_copy, b_copy, size, fold_def)
+        for r in range(size):
+            for c in range(size):
+                fq_old = cell_to_quads(old_front[r][c])
+                fq_new = cell_to_quads(f_copy[r][c])
+                bq = cell_to_quads(back[r][c])
+                for i in range(4):
+                    if fq_new[i] != 0 and fq_old[i] == 0 and bq[i] != 0:
+                        score += 10
+                        break
+                else:
+                    continue
+                break
+            else:
+                continue
+            break
+
+    # 折叠多样性 (0-10)
+    fold_types = set(f["type"] for f in sol)
+    score += min(len(fold_types) * 4, 10)
+
+    # 惩罚: 全部相同折叠 (-5)
+    if len(sol) >= 2 and len(set(str(f) for f in sol)) == 1:
+        score -= 5
+
+    return max(score, 0)
+
+
+def _count_matching(front, target, size):
+    """统计正面与目标的象限匹配数"""
+    match = 0
+    for r in range(size):
+        for c in range(size):
+            fq = cell_to_quads(front[r][c])
+            tq = cell_to_quads(target[r][c])
+            match += sum(1 for i in range(4) if fq[i] == tq[i])
+    return match
+
+
+def _greedy_solve(front, back, target, fold_defs, max_folds, size):
+    """贪心求解：每步选匹配目标最多的折叠"""
+    sf, sb = copy.deepcopy(front), copy.deepcopy(back)
+    sol = []
+    for _ in range(max_folds):
+        best_fold, best_match = None, -1
+        for f in fold_defs:
+            tf, tb = copy.deepcopy(sf), copy.deepcopy(sb)
+            tf, tb = fold_grid_any(tf, tb, size, f)
+            m = _count_matching(tf, target, size)
+            if m > best_match:
+                best_match = m
+                best_fold = f
+        if best_fold is None:
+            return None
+        sf, sb = fold_grid_any(sf, sb, size, best_fold)
+        sol.append(best_fold)
+    if sf == target:
+        return sol
+    return None
+
+
+def non_obvious_score(front, back, target, fold_defs, solutions, size):
+    """非显而易见性评分 (0-30)"""
+    score = 0
+    sol = solutions[0]
+
+    # 贪心求解 (0-20)
+    greedy = _greedy_solve(front, back, target, fold_defs, len(sol), size)
+    if greedy is None:
+        score += 20
+    elif greedy != sol:
+        score += 10
+
+    # 反直觉首步 (0-10)
+    initial_match = _count_matching(front, target, size)
+    after_f, _ = apply_folds_any(front, back, size, [sol[0]])
+    first_match = _count_matching(after_f, target, size)
+    if first_match < initial_match:
+        score += 10
+    elif first_match == initial_match:
+        score += 3
+
+    return score
+
+
+def quality_score(front, back, target, fold_defs, solutions, size):
+    """总体质量评分 (0-100)"""
+    vs = visual_change_score(front, target, size)
+    cs = complexity_score(solutions, front, back, size)
+    ns = non_obvious_score(front, back, target, fold_defs, solutions, size)
+    return vs + cs + ns
+
+
 def generate_level(size: int, max_folds: int, colors: list,
                    front_density: float = 0.2, back_density: float = 0.3,
                    max_solutions: int = 5, min_target_cells: int = 2,
