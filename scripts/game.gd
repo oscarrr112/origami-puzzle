@@ -43,12 +43,14 @@ var win_panel: PanelContainer
 func start_level(data: Dictionary) -> void:
 	level_data = data
 	model = GridModel.new()
+	var folds_arr: Array = data.get("folds", [])
 	model.setup(
 		int(data["size"]),
 		data["front"],
 		data["back"],
 		data["target"],
-		int(data["max_folds"])
+		int(data["max_folds"]),
+		folds_arr
 	)
 	_build_all()
 	_refresh_grid()
@@ -107,12 +109,11 @@ func _build_target_grid() -> void:
 	var container := Node2D.new()
 	container.position = TARGET_ORIGIN
 	add_child(container)
-
 	for row in range(s):
 		var row_arr := []
 		for col in range(s):
 			var cell := _create_preview_cell(
-				int(model.target[row][col]),
+				model.target[row][col],
 				Vector2(col * (TARGET_CELL_SIZE + TARGET_GAP), row * (TARGET_CELL_SIZE + TARGET_GAP))
 			)
 			container.add_child(cell)
@@ -138,7 +139,7 @@ func _build_back_grid() -> void:
 		var row_arr := []
 		for col in range(s):
 			var cell := _create_preview_cell(
-				int(model.back[row][col]),
+				model.back[row][col],
 				Vector2(col * (TARGET_CELL_SIZE + TARGET_GAP), row * (TARGET_CELL_SIZE + TARGET_GAP))
 			)
 			container.add_child(cell)
@@ -163,12 +164,11 @@ func _build_main_grid() -> void:
 	for row in range(s):
 		var row_arr := []
 		for col in range(s):
-			var rect := ColorRect.new()
-			rect.size = Vector2(CELL_SIZE, CELL_SIZE)
-			rect.position = _cell_pos(col, row)
-			rect.color = COLOR_MAP[0]
-			add_child(rect)
-			row_arr.append(rect)
+			var cell_node := _create_cell_node(
+				_cell_pos(col, row), float(CELL_SIZE)
+			)
+			add_child(cell_node)
+			row_arr.append(cell_node)
 		cell_rects.append(row_arr)
 
 
@@ -179,73 +179,173 @@ func _cell_pos(col: int, row: int) -> Vector2:
 	)
 
 
-func _create_preview_cell(color_id: int, pos: Vector2) -> Panel:
-	var panel := Panel.new()
-	panel.size = Vector2(TARGET_CELL_SIZE, TARGET_CELL_SIZE)
-	panel.position = pos
-	var style := StyleBoxFlat.new()
-	style.bg_color = COLOR_MAP[color_id]
-	style.border_width_top = 1
-	style.border_width_bottom = 1
-	style.border_width_left = 1
-	style.border_width_right = 1
-	style.border_color = Color("#5C4033", 0.3)
-	panel.add_theme_stylebox_override("panel", style)
-	return panel
+func _create_cell_node(pos: Vector2, cell_size: float) -> Node2D:
+	var node := Node2D.new()
+	node.position = pos
+	var cx := cell_size / 2.0
+	var cy := cell_size / 2.0
+
+	var t := Polygon2D.new()
+	t.polygon = PackedVector2Array([Vector2(0, 0), Vector2(cell_size, 0), Vector2(cx, cy)])
+	t.color = COLOR_MAP[0]
+	t.name = "T"
+	node.add_child(t)
+
+	var r := Polygon2D.new()
+	r.polygon = PackedVector2Array([Vector2(cell_size, 0), Vector2(cell_size, cell_size), Vector2(cx, cy)])
+	r.color = COLOR_MAP[0]
+	r.name = "R"
+	node.add_child(r)
+
+	var b := Polygon2D.new()
+	b.polygon = PackedVector2Array([Vector2(cell_size, cell_size), Vector2(0, cell_size), Vector2(cx, cy)])
+	b.color = COLOR_MAP[0]
+	b.name = "B"
+	node.add_child(b)
+
+	var l := Polygon2D.new()
+	l.polygon = PackedVector2Array([Vector2(0, 0), Vector2(0, cell_size), Vector2(cx, cy)])
+	l.color = COLOR_MAP[0]
+	l.name = "L"
+	node.add_child(l)
+
+	return node
 
 
-func _set_preview_cell_color(panel: Panel, color_id: int) -> void:
-	var style: StyleBoxFlat = panel.get_theme_stylebox("panel")
-	style.bg_color = COLOR_MAP[color_id]
+func _create_preview_cell(cell, pos: Vector2) -> Node2D:
+	var node := _create_cell_node(pos, float(TARGET_CELL_SIZE))
+	_set_preview_colors(node, cell)
+	return node
+
+
+func _set_cell_colors(cell_node: Node2D, cell) -> void:
+	var quads := GridModel.cell_to_quads(cell)
+	cell_node.get_node("T").color = COLOR_MAP[quads[0]]
+	cell_node.get_node("R").color = COLOR_MAP[quads[1]]
+	cell_node.get_node("B").color = COLOR_MAP[quads[2]]
+	cell_node.get_node("L").color = COLOR_MAP[quads[3]]
+
+func _set_preview_colors(cell_node: Node2D, cell) -> void:
+	var quads := GridModel.cell_to_quads(cell)
+	cell_node.get_node("T").color = COLOR_MAP[quads[0]]
+	cell_node.get_node("R").color = COLOR_MAP[quads[1]]
+	cell_node.get_node("B").color = COLOR_MAP[quads[2]]
+	cell_node.get_node("L").color = COLOR_MAP[quads[3]]
 
 
 func _build_fold_lines() -> void:
 	var s := model.size
-	var total := s * CELL_SIZE + (s - 1) * CELL_GAP
+	var total := float(s * CELL_SIZE + (s - 1) * CELL_GAP)
 
-	for i in range(1, s):
-		var x := GRID_ORIGIN.x + i * (CELL_SIZE + CELL_GAP) - CELL_GAP / 2.0 - 1
-		var line := Line2D.new()
-		line.add_point(Vector2(x, GRID_ORIGIN.y))
-		line.add_point(Vector2(x, GRID_ORIGIN.y + total))
-		line.width = 2.0
-		line.default_color = FOLD_LINE_COLOR
-		add_child(line)
-		fold_lines.append(line)
+	for fold_def in model.available_folds:
+		var ft: String = fold_def["type"]
+		match ft:
+			"v":
+				_build_v_fold_line(int(fold_def["pos"]), total)
+			"h":
+				_build_h_fold_line(int(fold_def["pos"]), total)
+			"d_bs":
+				_build_diagonal_fold_line(ft, int(fold_def["offset"]), total)
+			"d_fs":
+				_build_diagonal_fold_line(ft, int(fold_def["offset"]), total)
 
+
+func _build_v_fold_line(fold_pos: int, total: float) -> void:
+	var x := GRID_ORIGIN.x + fold_pos * (CELL_SIZE + CELL_GAP) - CELL_GAP / 2.0 - 1
+	var line := Line2D.new()
+	line.add_point(Vector2(x, GRID_ORIGIN.y))
+	line.add_point(Vector2(x, GRID_ORIGIN.y + total))
+	line.width = 2.0
+	line.default_color = FOLD_LINE_COLOR
+	add_child(line)
+	fold_lines.append(line)
+
+	var btn := Button.new()
+	btn.flat = true
+	btn.position = Vector2(x - FOLD_BTN_THICKNESS / 2.0, GRID_ORIGIN.y - 10)
+	btn.size = Vector2(FOLD_BTN_THICKNESS, total + 20)
+	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	btn.mouse_filter = Control.MOUSE_FILTER_STOP
+	var def := {"type": "v", "pos": fold_pos}
+	var line_ref := line
+	btn.pressed.connect(func(): _on_fold(def))
+	btn.mouse_entered.connect(func(): line_ref.default_color = FOLD_LINE_HOVER; line_ref.width = 4.0)
+	btn.mouse_exited.connect(func(): line_ref.default_color = FOLD_LINE_COLOR; line_ref.width = 2.0)
+	add_child(btn)
+	fold_buttons.append(btn)
+
+
+func _build_h_fold_line(fold_pos: int, total: float) -> void:
+	var y := GRID_ORIGIN.y + fold_pos * (CELL_SIZE + CELL_GAP) - CELL_GAP / 2.0 - 1
+	var line := Line2D.new()
+	line.add_point(Vector2(GRID_ORIGIN.x, y))
+	line.add_point(Vector2(GRID_ORIGIN.x + total, y))
+	line.width = 2.0
+	line.default_color = FOLD_LINE_COLOR
+	add_child(line)
+	fold_lines.append(line)
+
+	var btn := Button.new()
+	btn.flat = true
+	btn.position = Vector2(GRID_ORIGIN.x - 10, y - FOLD_BTN_THICKNESS / 2.0)
+	btn.size = Vector2(total + 20, FOLD_BTN_THICKNESS)
+	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	btn.mouse_filter = Control.MOUSE_FILTER_STOP
+	var def := {"type": "h", "pos": fold_pos}
+	var line_ref := line
+	btn.pressed.connect(func(): _on_fold(def))
+	btn.mouse_entered.connect(func(): line_ref.default_color = FOLD_LINE_HOVER; line_ref.width = 4.0)
+	btn.mouse_exited.connect(func(): line_ref.default_color = FOLD_LINE_COLOR; line_ref.width = 2.0)
+	add_child(btn)
+	fold_buttons.append(btn)
+
+
+func _build_diagonal_fold_line(fold_type: String, offset: int, total: float) -> void:
+	var is_bs := (fold_type == "d_bs")
+	var s := model.size
+	var step := CELL_SIZE + CELL_GAP
+
+	var points: Array[Vector2] = []
+	for i in range(s + 1):
+		var r_f: float
+		var c_f: float
+		if is_bs:
+			r_f = float(i)
+			c_f = float(i) + float(offset)
+		else:
+			r_f = float(i)
+			c_f = float(offset) - float(i)
+
+		if c_f < 0.0 or c_f > float(s) or r_f < 0.0 or r_f > float(s):
+			continue
+
+		var px := GRID_ORIGIN.x + c_f * step
+		var py := GRID_ORIGIN.y + r_f * step
+		points.append(Vector2(px, py))
+
+	if points.size() < 2:
+		return
+
+	var line := Line2D.new()
+	for pt in points:
+		line.add_point(pt)
+	line.width = 2.0
+	line.default_color = FOLD_LINE_COLOR
+	add_child(line)
+	fold_lines.append(line)
+
+	# Two endpoint buttons (avoids overlapping V/H buttons)
+	var def := {"type": fold_type, "offset": offset}
+	var line_ref := line
+	var btn_size := Vector2(FOLD_BTN_THICKNESS, FOLD_BTN_THICKNESS)
+	for pt in [points[0], points[points.size() - 1]]:
 		var btn := Button.new()
 		btn.flat = true
-		btn.position = Vector2(x - FOLD_BTN_THICKNESS / 2.0, GRID_ORIGIN.y - 10)
-		btn.size = Vector2(FOLD_BTN_THICKNESS, total + 20)
+		btn.position = pt - btn_size / 2.0
+		btn.size = btn_size
 		btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		btn.mouse_filter = Control.MOUSE_FILTER_STOP
-		var fold_pos := i
-		var line_ref := line
-		btn.pressed.connect(func(): _on_fold(true, fold_pos))
-		btn.mouse_entered.connect(func(): line_ref.default_color = FOLD_LINE_HOVER; line_ref.width = 4.0)
-		btn.mouse_exited.connect(func(): line_ref.default_color = FOLD_LINE_COLOR; line_ref.width = 2.0)
-		add_child(btn)
-		fold_buttons.append(btn)
-
-	for i in range(1, s):
-		var y := GRID_ORIGIN.y + i * (CELL_SIZE + CELL_GAP) - CELL_GAP / 2.0 - 1
-		var line := Line2D.new()
-		line.add_point(Vector2(GRID_ORIGIN.x, y))
-		line.add_point(Vector2(GRID_ORIGIN.x + total, y))
-		line.width = 2.0
-		line.default_color = FOLD_LINE_COLOR
-		add_child(line)
-		fold_lines.append(line)
-
-		var btn := Button.new()
-		btn.flat = true
-		btn.position = Vector2(GRID_ORIGIN.x - 10, y - FOLD_BTN_THICKNESS / 2.0)
-		btn.size = Vector2(total + 20, FOLD_BTN_THICKNESS)
-		btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		btn.mouse_filter = Control.MOUSE_FILTER_STOP
-		var fold_pos := i
-		var line_ref := line
-		btn.pressed.connect(func(): _on_fold(false, fold_pos))
+		btn.pressed.connect(func(): _on_fold(def))
 		btn.mouse_entered.connect(func(): line_ref.default_color = FOLD_LINE_HOVER; line_ref.width = 4.0)
 		btn.mouse_exited.connect(func(): line_ref.default_color = FOLD_LINE_COLOR; line_ref.width = 2.0)
 		add_child(btn)
@@ -415,10 +515,10 @@ func _build_win_popup() -> void:
 	add_child(win_panel)
 
 
-func _on_fold(is_vertical: bool, fold_pos: int) -> void:
+func _on_fold(fold_def: Dictionary) -> void:
 	if is_animating or not model.can_fold():
 		return
-	var result := model.fold(is_vertical, fold_pos)
+	var result := model.fold(fold_def)
 	if result.is_empty():
 		return
 	_animate_fold(result)
@@ -428,16 +528,32 @@ func _animate_fold(fold_data: Dictionary) -> void:
 	is_animating = true
 	_set_fold_buttons_enabled(false)
 
+	var fold_type: String = fold_data["type"]
+	match fold_type:
+		"v", "h":
+			await _animate_vh_fold(fold_data)
+		"d_bs", "d_fs":
+			await _animate_diagonal_fold(fold_data)
+
+	_refresh_grid()
+	_update_fold_label()
+	_set_fold_buttons_enabled(true)
+	is_animating = false
+
+	if model.check_win():
+		await get_tree().create_timer(0.5).timeout
+		_show_win()
+
+
+func _animate_vh_fold(fold_data: Dictionary) -> void:
 	var sources: Array = fold_data.sources
 	var targets: Array = fold_data.targets
-	var is_vert: bool = fold_data.is_vertical
+	var is_vert: bool = (fold_data.type == "v")
 	var fpos: int = fold_data.fold_pos
 
-	# 折叠前的状态（已保存在 history 里）
 	var history_state: Dictionary = model._history[model._history.size() - 1]
 	var old_front: Array = history_state.front
 
-	# 收集不重复的 source→target 对
 	var fold_pairs := []
 	var seen := {}
 	for i in range(sources.size()):
@@ -449,65 +565,56 @@ func _animate_fold(fold_data: Dictionary) -> void:
 		seen[key] = true
 		fold_pairs.append({"src": src, "tgt": tgt})
 
-	# 折线像素坐标
 	var fold_px := 0.0
 	if is_vert:
 		fold_px = GRID_ORIGIN.x + fpos * (CELL_SIZE + CELL_GAP) - CELL_GAP / 2.0
 	else:
 		fold_px = GRID_ORIGIN.y + fpos * (CELL_SIZE + CELL_GAP) - CELL_GAP / 2.0
 
-	# ---- 隐藏原始源格子 ----
 	for pair in fold_pairs:
 		var src: Vector2i = pair.src
 		cell_rects[src.y][src.x].visible = false
 
-	# ---- 创建正面翻页片（显示折叠前的正面颜色）----
+	# Front flap (pre-fold colors)
 	var flap_front := Node2D.new()
 	flap_front.z_index = 10
-	if is_vert:
-		flap_front.position = Vector2(fold_px, 0)
-	else:
-		flap_front.position = Vector2(0, fold_px)
+	flap_front.position = Vector2(fold_px, 0) if is_vert else Vector2(0, fold_px)
 	add_child(flap_front)
 
 	for pair in fold_pairs:
 		var src: Vector2i = pair.src
-		var rect := ColorRect.new()
-		rect.color = COLOR_MAP[int(old_front[src.y][src.x])]
-		rect.size = Vector2(CELL_SIZE, CELL_SIZE)
+		var cell_node := _create_cell_node(Vector2.ZERO, float(CELL_SIZE))
+		_set_cell_colors(cell_node, old_front[src.y][src.x])
 		var abs_pos := _cell_pos(src.x, src.y)
 		if is_vert:
-			rect.position = Vector2(abs_pos.x - fold_px, abs_pos.y)
+			cell_node.position = Vector2(abs_pos.x - fold_px, abs_pos.y)
 		else:
-			rect.position = Vector2(abs_pos.x, abs_pos.y - fold_px)
-		flap_front.add_child(rect)
+			cell_node.position = Vector2(abs_pos.x, abs_pos.y - fold_px)
+		flap_front.add_child(cell_node)
 
-	# ---- 创建背面翻页片（显示折叠后的最终颜色）----
+	# Back flap (post-fold target colors)
 	var flap_back := Node2D.new()
 	flap_back.z_index = 10
+	flap_back.position = Vector2(fold_px, 0) if is_vert else Vector2(0, fold_px)
 	if is_vert:
-		flap_back.position = Vector2(fold_px, 0)
 		flap_back.scale.x = 0.0
 	else:
-		flap_back.position = Vector2(0, fold_px)
 		flap_back.scale.y = 0.0
 	flap_back.skew = 0.1
 	add_child(flap_back)
 
 	for pair in fold_pairs:
 		var tgt: Vector2i = pair.tgt
-		var rect := ColorRect.new()
-		# 用 model.front 的最终状态（fold() 已经计算好了）
-		rect.color = COLOR_MAP[int(model.front[tgt.y][tgt.x])]
-		rect.size = Vector2(CELL_SIZE, CELL_SIZE)
+		var cell_node := _create_cell_node(Vector2.ZERO, float(CELL_SIZE))
+		_set_cell_colors(cell_node, model.front[tgt.y][tgt.x])
 		var abs_pos := _cell_pos(tgt.x, tgt.y)
 		if is_vert:
-			rect.position = Vector2(abs_pos.x - fold_px, abs_pos.y)
+			cell_node.position = Vector2(abs_pos.x - fold_px, abs_pos.y)
 		else:
-			rect.position = Vector2(abs_pos.x, abs_pos.y - fold_px)
-		flap_back.add_child(rect)
+			cell_node.position = Vector2(abs_pos.x, abs_pos.y - fold_px)
+		flap_back.add_child(cell_node)
 
-	# ---- 创建阴影 ----
+	# Shadow
 	var shadow := ColorRect.new()
 	shadow.color = Color(0, 0, 0, 0.0)
 	shadow.z_index = 3
@@ -520,11 +627,9 @@ func _animate_fold(fold_data: Dictionary) -> void:
 		shadow.size = Vector2(grid_total, grid_total / 2.0)
 	add_child(shadow)
 
-	# ---- 动画 ----
 	var fold_duration := 0.5
 	var half := fold_duration / 2.0
 
-	# 阶段1：正面折入（scale → 0），带透视 skew
 	var tween1 := create_tween()
 	tween1.set_parallel(true)
 	tween1.set_ease(Tween.EASE_IN)
@@ -535,13 +640,10 @@ func _animate_fold(fold_data: Dictionary) -> void:
 		tween1.tween_property(flap_front, "scale:y", 0.0, half)
 	tween1.tween_property(flap_front, "skew", 0.1, half)
 	tween1.tween_property(shadow, "color:a", 0.12, half)
-
 	await tween1.finished
 
-	# 隐藏正面片
 	flap_front.visible = false
 
-	# 阶段2：背面展开（scale 0 → 1），skew 恢复
 	var tween2 := create_tween()
 	tween2.set_parallel(true)
 	tween2.set_ease(Tween.EASE_OUT)
@@ -552,24 +654,63 @@ func _animate_fold(fold_data: Dictionary) -> void:
 		tween2.tween_property(flap_back, "scale:y", 1.0, half)
 	tween2.tween_property(flap_back, "skew", 0.0, half)
 	tween2.tween_property(shadow, "color:a", 0.0, half)
-
 	await tween2.finished
 
-	# ---- 清理 ----
 	flap_front.queue_free()
 	flap_back.queue_free()
 	shadow.queue_free()
 	for pair in fold_pairs:
 		var src: Vector2i = pair.src
 		cell_rects[src.y][src.x].visible = true
-	_refresh_grid()
-	_update_fold_label()
-	_set_fold_buttons_enabled(true)
-	is_animating = false
 
-	if model.check_win():
-		await get_tree().create_timer(0.5).timeout
-		_show_win()
+
+func _animate_diagonal_fold(fold_data: Dictionary) -> void:
+	var sources: Array = fold_data.sources
+	var targets: Array = fold_data.targets
+
+	# Phase 1: Fade out source cells
+	var tweens := []
+	for i in range(sources.size()):
+		var src: Vector2i = sources[i]
+		var cell_node: Node2D = cell_rects[src.y][src.x]
+		cell_node.modulate.a = 1.0
+		var tw := create_tween()
+		tw.tween_property(cell_node, "modulate:a", 0.0, 0.25)
+		tweens.append(tw)
+
+	if tweens.size() > 0:
+		await tweens[tweens.size() - 1].finished
+
+	# Snap to final state
+	_refresh_grid()
+
+	# Phase 2: Fade in affected target cells
+	var target_set := {}
+	for i in range(targets.size()):
+		var tgt: Vector2i = targets[i]
+		var key := tgt.y * 100 + tgt.x
+		if not target_set.has(key):
+			target_set[key] = tgt
+
+	tweens.clear()
+	for key in target_set:
+		var tgt: Vector2i = target_set[key]
+		var cell_node: Node2D = cell_rects[tgt.y][tgt.x]
+		cell_node.modulate.a = 0.3
+		var tw := create_tween()
+		tw.tween_property(cell_node, "modulate:a", 1.0, 0.25)
+		tweens.append(tw)
+
+	if tweens.size() > 0:
+		await tweens[tweens.size() - 1].finished
+
+	# Restore all cell opacity after animation completes
+	for i in range(sources.size()):
+		var src: Vector2i = sources[i]
+		cell_rects[src.y][src.x].modulate.a = 1.0
+	if fold_data.has("fold_line_cells"):
+		for flc in fold_data.fold_line_cells:
+			cell_rects[flc.y][flc.x].modulate.a = 1.0
 
 
 func _set_fold_buttons_enabled(enabled: bool) -> void:
@@ -581,13 +722,10 @@ func _refresh_grid() -> void:
 	var s := model.size
 	for row in range(s):
 		for col in range(s):
-			var rect: ColorRect = cell_rects[row][col]
-			rect.color = COLOR_MAP[int(model.front[row][col])]
-			rect.size = Vector2(CELL_SIZE, CELL_SIZE)
-			rect.position = _cell_pos(col, row)
-			# 刷新背面小预览
+			var cell_node: Node2D = cell_rects[row][col]
+			_set_cell_colors(cell_node, model.front[row][col])
 			if back_rects.size() > row and back_rects[row].size() > col:
-				_set_preview_cell_color(back_rects[row][col], int(model.back[row][col]))
+				_set_preview_colors(back_rects[row][col], model.back[row][col])
 
 
 func _update_fold_label() -> void:
@@ -614,14 +752,20 @@ func _show_back() -> void:
 	var s := model.size
 	for row in range(s):
 		for col in range(s):
-			var rect: ColorRect = cell_rects[row][col]
-			var back_val := int(model.back[row][col])
-			if back_val != 0:
-				rect.color = COLOR_MAP[back_val].lerp(Color.WHITE, 0.3)
-			elif int(model.front[row][col]) == 0:
-				rect.color = COLOR_MAP[0]
-			else:
-				rect.color = COLOR_MAP[int(model.front[row][col])].lerp(Color.WHITE, 0.5)
+			var cell_node: Node2D = cell_rects[row][col]
+			var front_cell = model.front[row][col]
+			var back_cell = model.back[row][col]
+			var bq := GridModel.cell_to_quads(back_cell)
+			var fq := GridModel.cell_to_quads(front_cell)
+			for qi in range(4):
+				var quad_name: String = ["T", "R", "B", "L"][qi]
+				var poly: Polygon2D = cell_node.get_node(quad_name)
+				if bq[qi] != 0:
+					poly.color = COLOR_MAP[bq[qi]].lerp(Color.WHITE, 0.3)
+				elif fq[qi] == 0:
+					poly.color = COLOR_MAP[0]
+				else:
+					poly.color = COLOR_MAP[fq[qi]].lerp(Color.WHITE, 0.5)
 
 
 func _hide_back() -> void:
