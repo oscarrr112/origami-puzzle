@@ -19,6 +19,8 @@ const COLOR_MAP := {
 	1: Color("#E8785A"),
 	2: Color("#6ABEAB"),
 	3: Color("#E8B84A"),
+	4: Color("#7B6CB7"),
+	5: Color("#5BA4CF"),
 }
 
 const BG_COLOR := Color("#F5F0E8")
