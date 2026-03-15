@@ -637,80 +637,98 @@ def verify_all_levels(filename):
             print(f"         Solution: {fmt_sequence(sols[0])}")
 
 
-# ── Level generation tiers ──────────────────────────────────────────────
+# ── Chapter configs (10 chapters × 10 levels) ─────────────────────────
 
-TIER_CONFIGS = [
-    # Tier 1: Single fold basics (levels 1-10)
-    {"size": 4, "max_folds": 1, "colors": [1], "front_d": 0.3, "back_d": 0.3,
-     "max_sols": 3, "min_cells": 3, "transfer": False, "count": 10},
-
-    # Tier 2: Single fold, 2 colors (levels 11-16)
-    {"size": 4, "max_folds": 1, "colors": [1, 2], "front_d": 0.3, "back_d": 0.3,
-     "max_sols": 2, "min_cells": 4, "transfer": False, "count": 6},
-
-    # Tier 3: Two folds, basic (levels 17-26)
-    {"size": 4, "max_folds": 2, "colors": [1, 2], "front_d": 0.1, "back_d": 0.3,
-     "max_sols": 4, "min_cells": 3, "transfer": False, "count": 10},
-
-    # Tier 4: Two folds, 3 colors (levels 27-34)
-    {"size": 4, "max_folds": 2, "colors": [1, 2, 3], "front_d": 0.15, "back_d": 0.3,
-     "max_sols": 3, "min_cells": 4, "transfer": False, "count": 8},
-
-    # Tier 5: Two folds with transfer (levels 35-44)
-    {"size": 4, "max_folds": 2, "colors": [1, 2], "front_d": 0.3, "back_d": 0.25,
-     "max_sols": 4, "min_cells": 3, "transfer": True, "count": 10},
-
-    # Tier 6: Three folds (levels 45-56)
-    {"size": 4, "max_folds": 3, "colors": [1, 2, 3], "front_d": 0.15, "back_d": 0.25,
-     "max_sols": 6, "min_cells": 3, "transfer": False, "count": 12},
-
-    # Tier 7: Three folds with transfer (levels 57-68)
-    {"size": 4, "max_folds": 3, "colors": [1, 2, 3], "front_d": 0.25, "back_d": 0.25,
-     "max_sols": 5, "min_cells": 4, "transfer": True, "count": 12},
-
-    # Tier 8: Four folds (levels 69-78)
-    {"size": 4, "max_folds": 4, "colors": [1, 2, 3], "front_d": 0.2, "back_d": 0.2,
-     "max_sols": 8, "min_cells": 3, "transfer": True, "count": 10},
-
-    # Tier 9: 5×5 grid, 2 folds (levels 79-86)
-    {"size": 5, "max_folds": 2, "colors": [1, 2], "front_d": 0.15, "back_d": 0.25,
-     "max_sols": 4, "min_cells": 4, "transfer": False, "count": 8},
-
-    # Tier 10: 5×5 grid, 3 folds with transfer (levels 87-100)
-    {"size": 5, "max_folds": 3, "colors": [1, 2, 3], "front_d": 0.2, "back_d": 0.2,
-     "max_sols": 6, "min_cells": 4, "transfer": True, "count": 14},
+CHAPTER_CONFIGS = [
+    # Ch1: 单折单色入门
+    {"chapter": 1, "ids": range(1, 11), "size": 4, "max_folds": 1,
+     "colors": [1], "front_d": 0.3, "back_d": 0.3,
+     "max_sols": 3, "min_cells": 2, "transfer": False,
+     "include_diag": False, "min_quality": 40},
+    # Ch2: 双折入门
+    {"chapter": 2, "ids": range(11, 21), "size": 4, "max_folds": 2,
+     "colors": [1, 2], "front_d": 0.3, "back_d": 0.3,
+     "max_sols": 3, "min_cells": 3, "transfer": False,
+     "include_diag": False, "min_quality": 50},
+    # Ch3: 双折多色
+    {"chapter": 3, "ids": range(21, 31), "size": 4, "max_folds": 2,
+     "colors": [1, 2, 3], "front_d": 0.25, "back_d": 0.3,
+     "max_sols": 3, "min_cells": 3, "transfer": False,
+     "include_diag": False, "min_quality": 55},
+    # Ch4: 对角初遇
+    {"chapter": 4, "ids": range(31, 41), "size": 4, "max_folds": 2,
+     "colors": [1, 2, 3], "front_d": 0.25, "back_d": 0.25,
+     "max_sols": 3, "min_cells": 3, "transfer": False,
+     "include_diag": True, "diag_ratio": 0.4, "min_quality": 55},
+    # Ch5: 对角组合
+    {"chapter": 5, "ids": range(41, 51), "size": 4, "max_folds": 3,
+     "colors": [1, 2, 3], "front_d": 0.2, "back_d": 0.25,
+     "max_sols": 3, "min_cells": 3, "transfer": False,
+     "include_diag": True, "diag_ratio": 0.4, "min_quality": 55},
+    # Ch6: 三折挑战
+    {"chapter": 6, "ids": range(51, 61), "size": 4, "max_folds": 3,
+     "colors": [1, 2, 3], "front_d": 0.2, "back_d": 0.25,
+     "max_sols": 3, "min_cells": 4, "transfer": True,
+     "include_diag": True, "diag_ratio": 0.35, "min_quality": 60},
+    # Ch7: 新色登场
+    {"chapter": 7, "ids": range(61, 71), "size": 4, "max_folds": 4,
+     "colors": [1, 2, 3, 4], "front_d": 0.2, "back_d": 0.2,
+     "max_sols": 3, "min_cells": 4, "transfer": True,
+     "include_diag": True, "diag_ratio": 0.3, "min_quality": 60},
+    # Ch8: 大网格入门
+    {"chapter": 8, "ids": range(71, 81), "size": 5, "max_folds": 3,
+     "colors": [1, 2, 3], "front_d": 0.2, "back_d": 0.25,
+     "max_sols": 3, "min_cells": 4, "transfer": False,
+     "include_diag": True, "diag_ratio": 0.3, "max_fold_defs": 8,
+     "min_quality": 55},
+    # Ch9: 大网格进阶
+    {"chapter": 9, "ids": range(81, 91), "size": 5, "max_folds": 4,
+     "colors": [1, 2, 3, 4], "front_d": 0.2, "back_d": 0.2,
+     "max_sols": 3, "min_cells": 5, "transfer": True,
+     "include_diag": True, "diag_ratio": 0.3, "max_fold_defs": 8,
+     "min_quality": 60},
+    # Ch10: 终极挑战
+    {"chapter": 10, "ids": range(91, 101), "size": 5, "max_folds": 6,
+     "colors": [1, 2, 3, 4, 5], "front_d": 0.2, "back_d": 0.2,
+     "max_sols": 2, "min_cells": 5, "transfer": True,
+     "include_diag": True, "diag_ratio": 0.3, "max_fold_defs": 8,
+     "min_quality": 60},
 ]
 
-TIER_NAMES = {
-    1: ["初折", "轻触", "半边", "投影", "拼图", "窗帘", "色带", "阶梯", "框架", "对称"],
-    2: ["双色", "棋格", "条纹", "拼贴", "波纹", "交错"],
-    3: ["双折", "夹心", "信封", "角落", "十字", "扇面", "层叠", "回形", "阶梯", "门框"],
-    4: ["三彩", "调色", "虹桥", "拼花", "星芒", "织锦", "彩带", "花窗"],
-    5: ["暗渡", "潜行", "偷梁", "换日", "移花", "接木", "转身", "腾挪", "借道", "穿越"],
-    6: ["三折", "曲径", "迂回", "绕行", "迷踪", "连环", "套叠", "盘旋", "螺旋", "弯曲", "蜿蜒", "盘绕"],
-    7: ["暗流", "潜龙", "蛰伏", "蜕变", "涅槃", "逆转", "倒影", "镜像", "折射", "衍射", "干涉", "共振"],
-    8: ["万象", "千变", "百转", "九曲", "八卦", "七巧", "六合", "五行", "四象", "太极"],
-    9: ["广场", "庭院", "花园", "长廊", "回廊", "天井", "中庭", "殿堂"],
-    10: ["星河", "银河", "星云", "星座", "北斗", "南斗", "天狼", "织女", "牛郎", "嫦娥", "后羿", "夸父", "精卫", "女娲"],
+CHAPTER_NAMES = {
+    1: ["初折", "倒影", "箭头", "钻石", "窄边", "角落", "点缀", "棋盘", "波纹", "拼合"],
+    2: ["双条", "三明治", "信封", "L形", "阶梯", "回声", "涟漪", "交错", "并排", "叠影"],
+    3: ["彩虹", "棱镜", "调色", "织锦", "花砖", "拼图", "斑斓", "绚彩", "万花", "画卷"],
+    4: ["斜阳", "棱角", "锐角", "折扇", "菱形", "三角", "楔子", "尖峰", "偏转", "交叉"],
+    5: ["旋涡", "螺旋", "回旋", "漩流", "暗涌", "潮汐", "激流", "湍急", "奔涌", "翻转"],
+    6: ["迷宫", "暗渡", "曲径", "幽径", "蜿蜒", "通幽", "转角", "回廊", "陷阱", "破局"],
+    7: ["紫韵", "霓虹", "极光", "彩霞", "幻彩", "琉璃", "水晶", "宝石", "虹光", "星辰"],
+    8: ["开阔", "疆域", "天地", "无垠", "广袤", "原野", "平原", "高原", "丘陵", "山峦"],
+    9: ["征途", "攀登", "跋涉", "远眺", "凌云", "穿越", "探索", "拓荒", "先驱", "巅峰"],
+    10: ["终焉", "觉醒", "涅槃", "超越", "永恒", "圆满", "大成", "极致", "归一", "万象"],
 }
 
+# Legacy tier configs (kept for backward compatibility)
+TIER_CONFIGS = CHAPTER_CONFIGS
+TIER_NAMES = CHAPTER_NAMES
 
-def generate_all_levels(seed=42):
-    """Generate all 100 levels across all tiers."""
+
+def generate_all_levels_legacy(seed=42):
+    """Legacy: Generate all 100 levels across all tiers (V/H only)."""
     random.seed(seed)
     all_levels = []
     level_id = 1
     tier_idx = 0
 
-    for tier_config in TIER_CONFIGS:
+    for tier_config in CHAPTER_CONFIGS:
         tier_idx += 1
-        names = TIER_NAMES[tier_idx]
+        names = CHAPTER_NAMES[tier_idx]
         generated = 0
 
-        for i in range(tier_config["count"]):
+        for i in range(len(tier_config["ids"])):
             # Try multiple seeds to get variety
             for attempt in range(20):
-                result = generate_level(
+                result = generate_level_legacy(
                     size=tier_config["size"],
                     max_folds=tier_config["max_folds"],
                     colors=tier_config["colors"],
@@ -748,23 +766,109 @@ def generate_all_levels(seed=42):
                 # Create a placeholder
                 level_id += 1
 
-        print(f"--- Tier {tier_idx}: generated {generated}/{tier_config['count']} ---")
+        print(f"--- Tier {tier_idx}: generated {generated}/{len(tier_config['ids'])} ---")
 
     return all_levels
 
 
+def generate_all_levels(seed=42):
+    """生成全部 100 关"""
+    random.seed(seed)
+    levels = []
+
+    for ch_cfg in CHAPTER_CONFIGS:
+        chapter = ch_cfg["chapter"]
+        size = ch_cfg["size"]
+        max_folds = ch_cfg["max_folds"]
+        colors = ch_cfg["colors"]
+        include_diag = ch_cfg.get("include_diag", False)
+        diag_ratio = ch_cfg.get("diag_ratio", 0)
+        max_fold_defs = ch_cfg.get("max_fold_defs", None)
+        min_quality = ch_cfg.get("min_quality", 0)
+
+        names = CHAPTER_NAMES[chapter]
+        name_idx = 0
+
+        for level_id in ch_cfg["ids"]:
+            # 生成关卡
+            # 决定是否包含对角折叠
+            use_diag = include_diag and random.random() < diag_ratio
+            fold_defs = all_fold_defs(size, include_diag=use_diag)
+
+            # 大网格限制折线数
+            if max_fold_defs and len(fold_defs) > max_fold_defs:
+                fold_defs = random.sample(fold_defs, max_fold_defs)
+
+            # 为章节前几关调整折叠数
+            pos_in_chapter = level_id - ch_cfg["ids"].start
+            if pos_in_chapter < 4:
+                folds = max(1, max_folds - 1) if max_folds > 1 else max_folds
+            else:
+                folds = max_folds
+
+            result = generate_level(
+                size=size, max_folds=folds, colors=colors,
+                front_density=ch_cfg["front_d"], back_density=ch_cfg["back_d"],
+                max_solutions=ch_cfg["max_sols"], min_target_cells=ch_cfg["min_cells"],
+                require_transfer=ch_cfg["transfer"], fold_defs=fold_defs,
+                min_quality=min_quality,
+            )
+
+            if result is None:
+                # 降低质量要求重试
+                result = generate_level(
+                    size=size, max_folds=folds, colors=colors,
+                    front_density=ch_cfg["front_d"], back_density=ch_cfg["back_d"],
+                    max_solutions=ch_cfg["max_sols"] + 2,
+                    min_target_cells=max(1, ch_cfg["min_cells"] - 1),
+                    require_transfer=False, fold_defs=fold_defs,
+                    min_quality=0,
+                )
+
+            if result is None:
+                raise RuntimeError(f"Level {level_id}: FAILED to generate after all attempts!")
+
+            name = names[name_idx] if name_idx < len(names) else f"关卡{level_id}"
+            lv_data = {
+                "id": level_id,
+                "name": name,
+                "size": size,
+                "max_folds": folds,
+                "front": result["front"],
+                "back": result["back"],
+                "target": result["target"],
+            }
+            # 包含对角的关卡需要 folds 字段
+            if use_diag or chapter >= 4:
+                lv_data["folds"] = fold_defs
+
+            levels.append(lv_data)
+            print(f"  Level {level_id}: {name} (generated, quality={result['quality']})")
+            name_idx += 1
+
+    return levels
+
+
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "verify":
+    if len(sys.argv) < 2:
+        print("Usage: python3 level_generator.py <command>")
+        print("  verify [file]        - Verify levels in JSON file")
+        print("  generate-all [seed]  - Generate all 100 levels")
+        print("  generate [seed]      - Alias for generate-all")
+        sys.exit(1)
+
+    cmd = sys.argv[1]
+    if cmd == "verify":
         filename = sys.argv[2] if len(sys.argv) > 2 else "data/levels.json"
         verify_all_levels(filename)
-    elif len(sys.argv) > 1 and sys.argv[1] == "generate":
+    elif cmd in ("generate-all", "generate"):
         seed = int(sys.argv[2]) if len(sys.argv) > 2 else 42
+        print(f"Generating 100 levels (seed={seed})...")
         levels = generate_all_levels(seed)
         output = {"levels": levels}
         with open("data/levels.json", "w") as f:
             json.dump(output, f, indent=2, ensure_ascii=False)
         print(f"\nGenerated {len(levels)} levels -> data/levels.json")
     else:
-        print("Usage:")
-        print("  python3 tools/level_generator.py verify [file]")
-        print("  python3 tools/level_generator.py generate [seed]")
+        print(f"Unknown command: {cmd}")
+        sys.exit(1)
