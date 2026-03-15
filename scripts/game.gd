@@ -24,7 +24,7 @@ const COLOR_MAP := {
 const BG_COLOR := Color("#F5F0E8")
 const TEXT_COLOR := Color("#5C4033")
 const FOLD_LINE_COLOR := Color("#5C4033", 0.25)
-const FOLD_LINE_HOVER := Color("#E8785A", 0.6)
+const FOLD_LINE_HOVER := Color("#4A90D9", 0.8)
 
 var model: GridModel
 var level_data: Dictionary
@@ -35,6 +35,7 @@ var target_rects: Array = []
 var back_rects: Array = []
 var fold_buttons: Array = []
 var fold_lines: Array = []
+var _diag_folds: Array = []  # [{def, line, p1, p2}, ...] for diagonal hit testing
 var fold_label: Label
 var win_overlay: ColorRect
 var win_panel: PanelContainer
@@ -64,6 +65,7 @@ func _build_all() -> void:
 	back_rects.clear()
 	fold_buttons.clear()
 	fold_lines.clear()
+	_diag_folds.clear()
 
 	_build_background()
 	_build_level_title()
@@ -321,16 +323,11 @@ func _build_h_fold_line(fold_pos: int, total: float) -> void:
 	fold_buttons.append(btn)
 
 
-func _build_diagonal_fold_line(fold_type: String, offset: int, total: float) -> void:
+func _build_diagonal_fold_line(fold_type: String, offset: int, _total: float) -> void:
 	var is_bs := (fold_type == "d_bs")
 	var s := model.size
-	var step := CELL_SIZE + CELL_GAP
-	var half := CELL_SIZE / 2.0
 
-	# Build line through cell diagonals (not grid corners).
-	# For d_bs (\): passes through each cell's top-left → bottom-right
-	# For d_fs (/): passes through each cell's top-right → bottom-left
-	# Collect the first and last cell on the fold line to get the overall line endpoints.
+	# Find first and last cell on the fold line
 	var first_cell := Vector2i(-1, -1)
 	var last_cell := Vector2i(-1, -1)
 	for row in range(s):
@@ -345,49 +342,29 @@ func _build_diagonal_fold_line(fold_type: String, offset: int, total: float) -> 
 	if first_cell.x == -1:
 		return
 
-	var points: Array[Vector2] = []
+	var p1: Vector2
+	var p2: Vector2
 	if is_bs:
-		# \ direction: top-left of first cell to bottom-right of last cell
-		points.append(_cell_pos(first_cell.x, first_cell.y))
-		points.append(_cell_pos(last_cell.x, last_cell.y) + Vector2(CELL_SIZE, CELL_SIZE))
+		p1 = _cell_pos(first_cell.x, first_cell.y)
+		p2 = _cell_pos(last_cell.x, last_cell.y) + Vector2(CELL_SIZE, CELL_SIZE)
 	else:
-		# / direction: top-right of first cell to bottom-left of last cell
-		points.append(_cell_pos(first_cell.x, first_cell.y) + Vector2(CELL_SIZE, 0))
-		points.append(_cell_pos(last_cell.x, last_cell.y) + Vector2(0, CELL_SIZE))
-
-	if points.size() < 2:
-		return
+		p1 = _cell_pos(first_cell.x, first_cell.y) + Vector2(CELL_SIZE, 0)
+		p2 = _cell_pos(last_cell.x, last_cell.y) + Vector2(0, CELL_SIZE)
 
 	var line := Line2D.new()
-	for pt in points:
-		line.add_point(pt)
+	line.add_point(p1)
+	line.add_point(p2)
 	line.width = 2.0
 	line.default_color = FOLD_LINE_COLOR
+	line.z_index = 10
 	add_child(line)
 	fold_lines.append(line)
 
 	var def := {"type": fold_type, "offset": offset}
-	var line_ref := line
-
-	# Place a clickable button at each segment along the diagonal line
-	for i in range(points.size() - 1):
-		var p1 := points[i]
-		var p2 := points[i + 1]
-		var mid := (p1 + p2) / 2.0
-		var btn := Button.new()
-		btn.flat = true
-		btn.position = Vector2(min(p1.x, p2.x) - 15, min(p1.y, p2.y) - 15)
-		btn.size = Vector2(abs(p2.x - p1.x) + 30, abs(p2.y - p1.y) + 30)
-		btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		btn.mouse_filter = Control.MOUSE_FILTER_STOP
-		btn.pressed.connect(func(): _on_fold(def))
-		btn.mouse_entered.connect(func(): line_ref.default_color = FOLD_LINE_HOVER; line_ref.width = 4.0)
-		btn.mouse_exited.connect(func(): line_ref.default_color = FOLD_LINE_COLOR; line_ref.width = 2.0)
-		add_child(btn)
-		fold_buttons.append(btn)
+	_diag_folds.append({"def": def, "line": line, "p1": p1, "p2": p2})
 
 	# Visible indicator circles at endpoints
-	for pt in [points[0], points[points.size() - 1]]:
+	for pt in [p1, p2]:
 		var indicator := Polygon2D.new()
 		var circle_pts := PackedVector2Array()
 		var radius := 8.0
@@ -396,6 +373,7 @@ func _build_diagonal_fold_line(fold_type: String, offset: int, total: float) -> 
 			circle_pts.append(pt + Vector2(cos(angle), sin(angle)) * radius)
 		indicator.polygon = circle_pts
 		indicator.color = FOLD_LINE_COLOR
+		indicator.z_index = 10
 		add_child(indicator)
 
 
@@ -562,6 +540,35 @@ func _build_win_popup() -> void:
 	add_child(win_panel)
 
 
+static func _point_dist_to_segment(point: Vector2, p1: Vector2, p2: Vector2) -> float:
+	var line_vec := p2 - p1
+	var len_sq := line_vec.length_squared()
+	if len_sq < 0.001:
+		return point.distance_to(p1)
+	var t: float = clamp((point - p1).dot(line_vec) / len_sq, 0.0, 1.0)
+	return point.distance_to(p1 + line_vec * t)
+
+
+func _input(event: InputEvent) -> void:
+	if _diag_folds.is_empty():
+		return
+	if event is InputEventMouseMotion:
+		var mm := event as InputEventMouseMotion
+		for d in _diag_folds:
+			var near := _point_dist_to_segment(mm.position, d["p1"], d["p2"]) <= FOLD_BTN_THICKNESS / 2.0
+			var line: Line2D = d["line"]
+			line.default_color = FOLD_LINE_HOVER if near else FOLD_LINE_COLOR
+			line.width = 4.0 if near else 2.0
+	elif event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+			for d in _diag_folds:
+				if _point_dist_to_segment(mb.position, d["p1"], d["p2"]) <= FOLD_BTN_THICKNESS / 2.0:
+					_on_fold(d["def"])
+					get_viewport().set_input_as_handled()
+					return
+
+
 func _on_fold(fold_def: Dictionary) -> void:
 	if is_animating or not model.can_fold():
 		return
@@ -714,8 +721,17 @@ func _animate_vh_fold(fold_data: Dictionary) -> void:
 func _animate_diagonal_fold(fold_data: Dictionary) -> void:
 	var sources: Array = fold_data.sources
 	var targets: Array = fold_data.targets
+	var fold_line_cells: Array = fold_data.get("fold_line_cells", [])
+	var fold_type: String = fold_data["type"]
 
-	# Phase 1: Fade out source cells
+	# Source quadrant names for fold-line cells
+	var src_quad_names: Array[String] = []
+	if fold_type == "d_bs":
+		src_quad_names = ["T", "R"]
+	else:
+		src_quad_names = ["T", "L"]
+
+	# Phase 1: Fade out source cells (whole) + fold-line source quadrants only
 	var tweens := []
 	for i in range(sources.size()):
 		var src: Vector2i = sources[i]
@@ -725,39 +741,27 @@ func _animate_diagonal_fold(fold_data: Dictionary) -> void:
 		tw.tween_property(cell_node, "modulate:a", 0.0, 0.25)
 		tweens.append(tw)
 
+	for flc in fold_line_cells:
+		var cell_node: Node2D = cell_rects[flc.y][flc.x]
+		for qname in src_quad_names:
+			var quad: Polygon2D = cell_node.get_node(qname)
+			quad.modulate.a = 1.0
+			var tw := create_tween()
+			tw.tween_property(quad, "modulate:a", 0.0, 0.25)
+			tweens.append(tw)
+
 	if tweens.size() > 0:
 		await tweens[tweens.size() - 1].finished
 
-	# Snap to final state
+	# Snap to final state and restore all opacity
 	_refresh_grid()
-
-	# Phase 2: Fade in affected target cells
-	var target_set := {}
-	for i in range(targets.size()):
-		var tgt: Vector2i = targets[i]
-		var key := tgt.y * 100 + tgt.x
-		if not target_set.has(key):
-			target_set[key] = tgt
-
-	tweens.clear()
-	for key in target_set:
-		var tgt: Vector2i = target_set[key]
-		var cell_node: Node2D = cell_rects[tgt.y][tgt.x]
-		cell_node.modulate.a = 0.3
-		var tw := create_tween()
-		tw.tween_property(cell_node, "modulate:a", 1.0, 0.25)
-		tweens.append(tw)
-
-	if tweens.size() > 0:
-		await tweens[tweens.size() - 1].finished
-
-	# Restore all cell opacity after animation completes
 	for i in range(sources.size()):
 		var src: Vector2i = sources[i]
 		cell_rects[src.y][src.x].modulate.a = 1.0
-	if fold_data.has("fold_line_cells"):
-		for flc in fold_data.fold_line_cells:
-			cell_rects[flc.y][flc.x].modulate.a = 1.0
+	for flc in fold_line_cells:
+		var cell_node: Node2D = cell_rects[flc.y][flc.x]
+		for qname in src_quad_names:
+			cell_node.get_node(qname).modulate.a = 1.0
 
 
 func _set_fold_buttons_enabled(enabled: bool) -> void:
