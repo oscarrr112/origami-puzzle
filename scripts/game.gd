@@ -762,12 +762,13 @@ func _animate_diagonal_fold(fold_data: Dictionary) -> void:
 	var fold_line_cells: Array = fold_data.get("fold_line_cells", [])
 	var fold_type: String = fold_data["type"]
 
-	# Source quadrant names for fold-line cells
-	var src_quad_names: Array[String] = []
-	if fold_type == "d_bs":
-		src_quad_names = ["T", "R"]
-	else:
-		src_quad_names = ["T", "L"]
+	# Source quadrant names for fold-line cells (determined by model based on fold direction)
+	var src_quad_names: Array = fold_data.get("src_quad_names", [])
+	if src_quad_names.is_empty():
+		if fold_type == "d_bs":
+			src_quad_names = ["T", "R"]
+		else:
+			src_quad_names = ["T", "L"]
 
 	# Phase 1: Fade out source cells (whole) + fold-line source quadrants only
 	var tweens := []

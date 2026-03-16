@@ -2,7 +2,7 @@
   "levels": [
     {
       "id": 1,
-      "name": "初折",
+      "name": "下折",
       "size": 4,
       "max_folds": 1,
       "front": [
@@ -338,7 +338,7 @@
     },
     {
       "id": 5,
-      "name": "横条",
+      "name": "选线",
       "size": 4,
       "max_folds": 1,
       "front": [
@@ -506,7 +506,7 @@
     },
     {
       "id": 7,
-      "name": "角落",
+      "name": "叠角",
       "size": 4,
       "max_folds": 1,
       "front": [
@@ -590,7 +590,7 @@
     },
     {
       "id": 8,
-      "name": "窄边",
+      "name": "遮隐",
       "size": 4,
       "max_folds": 1,
       "front": [
@@ -674,7 +674,7 @@
     },
     {
       "id": 9,
-      "name": "阶梯",
+      "name": "聚点",
       "size": 4,
       "max_folds": 1,
       "front": [
@@ -758,7 +758,7 @@
     },
     {
       "id": 10,
-      "name": "拼合",
+      "name": "补缺",
       "size": 4,
       "max_folds": 1,
       "front": [
@@ -842,7 +842,7 @@
     },
     {
       "id": 11,
-      "name": "双条",
+      "name": "翻面",
       "size": 4,
       "max_folds": 1,
       "front": [
@@ -926,7 +926,7 @@
     },
     {
       "id": 12,
-      "name": "转移",
+      "name": "借背",
       "size": 4,
       "max_folds": 1,
       "front": [
@@ -1010,7 +1010,7 @@
     },
     {
       "id": 13,
-      "name": "显现",
+      "name": "显色",
       "size": 4,
       "max_folds": 1,
       "front": [
@@ -1094,7 +1094,7 @@
     },
     {
       "id": 14,
-      "name": "首折",
+      "name": "迁移",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -1178,7 +1178,7 @@
     },
     {
       "id": 15,
-      "name": "叠层",
+      "name": "传角",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -1262,7 +1262,7 @@
     },
     {
       "id": 16,
-      "name": "交错",
+      "name": "归列",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -1346,7 +1346,7 @@
     },
     {
       "id": 17,
-      "name": "并排",
+      "name": "双色",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -1430,7 +1430,7 @@
     },
     {
       "id": 18,
-      "name": "涟漪",
+      "name": "棋格",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -1514,7 +1514,7 @@
     },
     {
       "id": 19,
-      "name": "阶梯",
+      "name": "移花",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -1598,7 +1598,7 @@
     },
     {
       "id": 20,
-      "name": "叠影",
+      "name": "列队",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -1682,7 +1682,7 @@
     },
     {
       "id": 21,
-      "name": "彩虹",
+      "name": "三虹",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -1766,7 +1766,7 @@
     },
     {
       "id": 22,
-      "name": "调色",
+      "name": "聚彩",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -1850,7 +1850,7 @@
     },
     {
       "id": 23,
-      "name": "织锦",
+      "name": "叠彩",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -1934,7 +1934,7 @@
     },
     {
       "id": 24,
-      "name": "花砖",
+      "name": "方砖",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -2018,7 +2018,7 @@
     },
     {
       "id": 25,
-      "name": "拼图",
+      "name": "花窗",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -2102,7 +2102,7 @@
     },
     {
       "id": 26,
-      "name": "棱镜",
+      "name": "沉聚",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -2186,7 +2186,7 @@
     },
     {
       "id": 27,
-      "name": "绚彩",
+      "name": "织带",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -2270,7 +2270,7 @@
     },
     {
       "id": 28,
-      "name": "交织",
+      "name": "竖纹",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -2354,7 +2354,7 @@
     },
     {
       "id": 29,
-      "name": "万花",
+      "name": "塔叠",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -2438,7 +2438,7 @@
     },
     {
       "id": 30,
-      "name": "画卷",
+      "name": "裙摆",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -2522,7 +2522,7 @@
     },
     {
       "id": 31,
-      "name": "斜阳",
+      "name": "初斜",
       "size": 4,
       "max_folds": 1,
       "front": [
@@ -2664,7 +2664,7 @@
     },
     {
       "id": 32,
-      "name": "棱角",
+      "name": "移角",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -2782,7 +2782,7 @@
     },
     {
       "id": 33,
-      "name": "锐角",
+      "name": "合方",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -2900,7 +2900,7 @@
     },
     {
       "id": 34,
-      "name": "折扇",
+      "name": "绿扇",
       "size": 4,
       "max_folds": 1,
       "front": [
@@ -3046,7 +3046,7 @@
     },
     {
       "id": 35,
-      "name": "菱形",
+      "name": "归柱",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -3164,7 +3164,7 @@
     },
     {
       "id": 36,
-      "name": "三角",
+      "name": "铺底",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -3282,7 +3282,7 @@
     },
     {
       "id": 37,
-      "name": "楔子",
+      "name": "夹绿",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -3400,7 +3400,7 @@
     },
     {
       "id": 38,
-      "name": "尖峰",
+      "name": "缩角",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -3518,7 +3518,7 @@
     },
     {
       "id": 39,
-      "name": "偏转",
+      "name": "斜印",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -3654,7 +3654,7 @@
     },
     {
       "id": 40,
-      "name": "交叉",
+      "name": "三重",
       "size": 4,
       "max_folds": 3,
       "front": [
@@ -3798,7 +3798,7 @@
     },
     {
       "id": 41,
-      "name": "旋涡",
+      "name": "聚柱",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -3900,7 +3900,7 @@
     },
     {
       "id": 42,
-      "name": "螺旋",
+      "name": "点移",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -4002,7 +4002,7 @@
     },
     {
       "id": 43,
-      "name": "回旋",
+      "name": "斜痕",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -4105,7 +4105,7 @@
     },
     {
       "id": 44,
-      "name": "漩流",
+      "name": "横聚",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -4215,7 +4215,7 @@
     },
     {
       "id": 45,
-      "name": "暗涌",
+      "name": "落底",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -4325,7 +4325,7 @@
     },
     {
       "id": 46,
-      "name": "潮汐",
+      "name": "中合",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -4435,7 +4435,7 @@
     },
     {
       "id": 47,
-      "name": "激流",
+      "name": "双印",
       "size": 4,
       "max_folds": 3,
       "front": [
@@ -4547,7 +4547,7 @@
     },
     {
       "id": 48,
-      "name": "湍急",
+      "name": "绿柱",
       "size": 4,
       "max_folds": 3,
       "front": [
@@ -4654,7 +4654,7 @@
     },
     {
       "id": 49,
-      "name": "奔涌",
+      "name": "交印",
       "size": 4,
       "max_folds": 3,
       "front": [
@@ -4761,7 +4761,7 @@
     },
     {
       "id": 50,
-      "name": "翻转",
+      "name": "终章",
       "size": 4,
       "max_folds": 3,
       "front": [
@@ -4873,7 +4873,7 @@
     },
     {
       "id": 51,
-      "name": "迷宫",
+      "name": "聚翼",
       "size": 4,
       "max_folds": 3,
       "front": [
@@ -4983,7 +4983,7 @@
     },
     {
       "id": 52,
-      "name": "暗渡",
+      "name": "双栖",
       "size": 4,
       "max_folds": 3,
       "front": [
@@ -5093,7 +5093,7 @@
     },
     {
       "id": 53,
-      "name": "曲径",
+      "name": "束柱",
       "size": 4,
       "max_folds": 3,
       "front": [
@@ -5203,7 +5203,7 @@
     },
     {
       "id": 54,
-      "name": "幽径",
+      "name": "三彩",
       "size": 4,
       "max_folds": 3,
       "front": [
@@ -5313,7 +5313,7 @@
     },
     {
       "id": 55,
-      "name": "蜿蜒",
+      "name": "寸隅",
       "size": 4,
       "max_folds": 3,
       "front": [
@@ -5423,7 +5423,7 @@
     },
     {
       "id": 56,
-      "name": "通幽",
+      "name": "台阶",
       "size": 4,
       "max_folds": 3,
       "front": [
@@ -5533,7 +5533,7 @@
     },
     {
       "id": 57,
-      "name": "转角",
+      "name": "沉底",
       "size": 4,
       "max_folds": 3,
       "front": [
@@ -5654,7 +5654,7 @@
     },
     {
       "id": 58,
-      "name": "回廊",
+      "name": "斜汇",
       "size": 4,
       "max_folds": 3,
       "front": [
@@ -5765,7 +5765,7 @@
     },
     {
       "id": 59,
-      "name": "陷阱",
+      "name": "沉渊",
       "size": 4,
       "max_folds": 3,
       "front": [
@@ -5886,7 +5886,7 @@
     },
     {
       "id": 60,
-      "name": "破局",
+      "name": "双斜",
       "size": 4,
       "max_folds": 3,
       "front": [
@@ -6016,7 +6016,7 @@
     },
     {
       "id": 61,
-      "name": "紫韵",
+      "name": "紫现",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -6126,7 +6126,7 @@
     },
     {
       "id": 62,
-      "name": "霓虹",
+      "name": "散珠",
       "size": 4,
       "max_folds": 2,
       "front": [
@@ -6236,7 +6236,7 @@
     },
     {
       "id": 63,
-      "name": "极光",
+      "name": "孤点",
       "size": 4,
       "max_folds": 3,
       "front": [
@@ -6346,7 +6346,7 @@
     },
     {
       "id": 64,
-      "name": "彩霞",
+      "name": "虹柱",
       "size": 4,
       "max_folds": 3,
       "front": [
@@ -6456,7 +6456,7 @@
     },
     {
       "id": 65,
-      "name": "幻彩",
+      "name": "凝二",
       "size": 4,
       "max_folds": 3,
       "front": [
@@ -6566,7 +6566,7 @@
     },
     {
       "id": 66,
-      "name": "琉璃",
+      "name": "双瞳",
       "size": 4,
       "max_folds": 3,
       "front": [
@@ -6676,7 +6676,7 @@
     },
     {
       "id": 67,
-      "name": "水晶",
+      "name": "斜虹",
       "size": 4,
       "max_folds": 3,
       "front": [
@@ -6796,7 +6796,7 @@
     },
     {
       "id": 68,
-      "name": "宝石",
+      "name": "逆斜",
       "size": 4,
       "max_folds": 3,
       "front": [
@@ -6916,7 +6916,7 @@
     },
     {
       "id": 69,
-      "name": "虹光",
+      "name": "四叠",
       "size": 4,
       "max_folds": 4,
       "front": [
@@ -7027,7 +7027,7 @@
     },
     {
       "id": 70,
-      "name": "星辰",
+      "name": "终折",
       "size": 4,
       "max_folds": 4,
       "front": [
@@ -7147,7 +7147,7 @@
     },
     {
       "id": 71,
-      "name": "开阔",
+      "name": "初野",
       "size": 5,
       "max_folds": 2,
       "front": [
@@ -7282,7 +7282,7 @@
     },
     {
       "id": 72,
-      "name": "疆域",
+      "name": "削繁",
       "size": 5,
       "max_folds": 2,
       "front": [
@@ -7421,7 +7421,7 @@
     },
     {
       "id": 73,
-      "name": "天地",
+      "name": "遥望",
       "size": 5,
       "max_folds": 2,
       "front": [
@@ -7556,7 +7556,7 @@
     },
     {
       "id": 74,
-      "name": "无垠",
+      "name": "合拢",
       "size": 5,
       "max_folds": 2,
       "front": [
@@ -7691,7 +7691,7 @@
     },
     {
       "id": 75,
-      "name": "广袤",
+      "name": "四合",
       "size": 5,
       "max_folds": 2,
       "front": [
@@ -7826,7 +7826,7 @@
     },
     {
       "id": 76,
-      "name": "原野",
+      "name": "双星",
       "size": 5,
       "max_folds": 3,
       "front": [
@@ -7969,7 +7969,7 @@
     },
     {
       "id": 77,
-      "name": "平原",
+      "name": "象限",
       "size": 5,
       "max_folds": 3,
       "front": [
@@ -8118,7 +8118,7 @@
     },
     {
       "id": 78,
-      "name": "高原",
+      "name": "交斜",
       "size": 5,
       "max_folds": 3,
       "front": [
@@ -8262,7 +8262,7 @@
     },
     {
       "id": 79,
-      "name": "丘陵",
+      "name": "扇面",
       "size": 5,
       "max_folds": 3,
       "front": [
@@ -8411,7 +8411,7 @@
     },
     {
       "id": 80,
-      "name": "山峦",
+      "name": "锦绣",
       "size": 5,
       "max_folds": 3,
       "front": [
@@ -8559,7 +8559,7 @@
     },
     {
       "id": 81,
-      "name": "征途",
+      "name": "四方",
       "size": 5,
       "max_folds": 2,
       "front": [
@@ -8710,7 +8710,7 @@
     },
     {
       "id": 82,
-      "name": "攀登",
+      "name": "合璧",
       "size": 5,
       "max_folds": 2,
       "front": [
@@ -8861,7 +8861,7 @@
     },
     {
       "id": 83,
-      "name": "跋涉",
+      "name": "重影",
       "size": 5,
       "max_folds": 2,
       "front": [
@@ -9012,7 +9012,7 @@
     },
     {
       "id": 84,
-      "name": "远眺",
+      "name": "聚心",
       "size": 5,
       "max_folds": 3,
       "front": [
@@ -9163,7 +9163,7 @@
     },
     {
       "id": 85,
-      "name": "凌云",
+      "name": "散聚",
       "size": 5,
       "max_folds": 3,
       "front": [
@@ -9314,7 +9314,7 @@
     },
     {
       "id": 86,
-      "name": "穿越",
+      "name": "绽放",
       "size": 5,
       "max_folds": 3,
       "front": [
@@ -9465,7 +9465,7 @@
     },
     {
       "id": 87,
-      "name": "探索",
+      "name": "斜链",
       "size": 5,
       "max_folds": 3,
       "front": [
@@ -9621,7 +9621,7 @@
     },
     {
       "id": 88,
-      "name": "拓荒",
+      "name": "反斜",
       "size": 5,
       "max_folds": 3,
       "front": [
@@ -9777,7 +9777,7 @@
     },
     {
       "id": 89,
-      "name": "先驱",
+      "name": "星折",
       "size": 5,
       "max_folds": 4,
       "front": [
@@ -9943,7 +9943,7 @@
     },
     {
       "id": 90,
-      "name": "巅峰",
+      "name": "棋盘",
       "size": 5,
       "max_folds": 4,
       "front": [
@@ -10114,7 +10114,7 @@
     },
     {
       "id": 91,
-      "name": "终焉",
+      "name": "绿洲",
       "size": 5,
       "max_folds": 3,
       "front": [
@@ -10257,7 +10257,7 @@
     },
     {
       "id": 92,
-      "name": "觉醒",
+      "name": "碧落",
       "size": 5,
       "max_folds": 3,
       "front": [
@@ -10400,7 +10400,7 @@
     },
     {
       "id": 93,
-      "name": "涅槃",
+      "name": "五彩",
       "size": 5,
       "max_folds": 4,
       "front": [
@@ -10543,7 +10543,7 @@
     },
     {
       "id": 94,
-      "name": "超越",
+      "name": "暮色",
       "size": 5,
       "max_folds": 4,
       "front": [
@@ -10686,7 +10686,7 @@
     },
     {
       "id": 95,
-      "name": "永恒",
+      "name": "繁花",
       "size": 5,
       "max_folds": 4,
       "front": [
@@ -10829,7 +10829,7 @@
     },
     {
       "id": 96,
-      "name": "圆满",
+      "name": "虹桥",
       "size": 5,
       "max_folds": 4,
       "front": [
@@ -10980,7 +10980,7 @@
     },
     {
       "id": 97,
-      "name": "大成",
+      "name": "迭嶂",
       "size": 5,
       "max_folds": 4,
       "front": [
@@ -11143,7 +11143,7 @@
     },
     {
       "id": 98,
-      "name": "极致",
+      "name": "深渊",
       "size": 5,
       "max_folds": 5,
       "front": [
@@ -11306,7 +11306,7 @@
     },
     {
       "id": 99,
-      "name": "归一",
+      "name": "熔炉",
       "size": 5,
       "max_folds": 5,
       "front": [
@@ -11459,7 +11459,7 @@
     },
     {
       "id": 100,
-      "name": "万象",
+      "name": "折鹤",
       "size": 5,
       "max_folds": 6,
       "front": [

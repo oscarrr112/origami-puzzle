@@ -261,27 +261,54 @@ func _fold_diagonal(fold_type: String, offset: int) -> Dictionary:
 		"fold_line_cells": [] as Array[Vector2i],
 	}
 
+	# Count cells on each side to fold the smaller side (like VH folds)
+	# Side A: upper-right for d_bs (val > offset), upper-left for d_fs (val < offset)
+	# Side B: lower-left for d_bs (val < offset), lower-right for d_fs (val > offset)
+	var count_a := 0
+	var count_b := 0
+	for row in range(size):
+		for col in range(size):
+			var val: int = (col - row) if is_bs else (col + row)
+			if val > offset:
+				if is_bs: count_a += 1
+				else: count_b += 1
+			elif val < offset:
+				if is_bs: count_b += 1
+				else: count_a += 1
+
+	var fold_side_a := (count_a <= count_b)
+
+	# Determine source quadrants for fold-line cells
+	var src_quads: Array[int] = []
+	if is_bs:
+		if fold_side_a:
+			src_quads = [Q_T, Q_R]
+		else:
+			src_quads = [Q_B, Q_L]
+	else:
+		if fold_side_a:
+			src_quads = [Q_T, Q_L]
+		else:
+			src_quads = [Q_B, Q_R]
+
+	var src_quad_names: Array[String] = []
+	for qi in src_quads:
+		src_quad_names.append(["T", "R", "B", "L"][qi])
+	result["src_quad_names"] = src_quad_names
+
 	var orig_front := _deep_copy(front)
 	var orig_back := _deep_copy(back)
 
 	for row in range(size):
 		for col in range(size):
-			var val: int
-			if is_bs:
-				val = col - row
-			else:
-				val = col + row
+			var val: int = (col - row) if is_bs else (col + row)
 
-			if is_bs and val > offset:
-				_transfer_whole_cell(row, col, fold_type, offset, is_bs, orig_front, orig_back, result)
-			elif is_bs and val < offset:
-				pass
-			elif not is_bs and val < offset:
-				_transfer_whole_cell(row, col, fold_type, offset, is_bs, orig_front, orig_back, result)
-			elif not is_bs and val > offset:
-				pass
+			if val == offset:
+				_transfer_fold_line_cell(row, col, fold_type, offset, is_bs, orig_front, orig_back, result, src_quads)
 			else:
-				_transfer_fold_line_cell(row, col, fold_type, offset, is_bs, orig_front, orig_back, result)
+				var is_side_a: bool = (val > offset) if is_bs else (val < offset)
+				if (is_side_a and fold_side_a) or (not is_side_a and not fold_side_a):
+					_transfer_whole_cell(row, col, fold_type, offset, is_bs, orig_front, orig_back, result)
 
 	return result
 
@@ -321,14 +348,8 @@ func _transfer_whole_cell(sr: int, sc: int, fold_type: String, offset: int,
 func _transfer_fold_line_cell(row: int, col: int, fold_type: String,
 							  offset: int, is_bs: bool,
 							  orig_front: Array, orig_back: Array,
-							  result: Dictionary) -> void:
+							  result: Dictionary, src_quads: Array[int]) -> void:
 	result.fold_line_cells.append(Vector2i(col, row))
-
-	var src_quads: Array[int]
-	if is_bs:
-		src_quads = [Q_T, Q_R]
-	else:
-		src_quads = [Q_T, Q_L]
 
 	var of := cell_to_quads(orig_front[row][col])
 	var ob := cell_to_quads(orig_back[row][col])
