@@ -8,8 +8,8 @@ const CELL_GAP := 3
 const TARGET_CELL_SIZE := 35
 const TARGET_GAP := 2
 const GRID_ORIGIN := Vector2(60, 350)
-const TARGET_ORIGIN := Vector2(60, 80)
-const BACK_ORIGIN := Vector2(420, 80)
+const TARGET_ORIGIN := Vector2(60, 100)
+const BACK_ORIGIN := Vector2(420, 100)
 const HUD_Y_OFFSET := 60
 const FOLD_BTN_THICKNESS := 44
 const ANIM_DURATION := 0.3
@@ -113,6 +113,7 @@ func _build_target_grid() -> void:
 	var container := Node2D.new()
 	container.position = TARGET_ORIGIN
 	add_child(container)
+	_add_preview_border(container, s)
 	for row in range(s):
 		var row_arr := []
 		for col in range(s):
@@ -138,6 +139,7 @@ func _build_back_grid() -> void:
 	var container := Node2D.new()
 	container.position = BACK_ORIGIN
 	add_child(container)
+	_add_preview_border(container, s)
 
 	for row in range(s):
 		var row_arr := []
@@ -149,6 +151,35 @@ func _build_back_grid() -> void:
 			container.add_child(cell)
 			row_arr.append(cell)
 		back_rects.append(row_arr)
+
+
+func _add_preview_border(container: Node2D, s: int) -> void:
+	var total := s * TARGET_CELL_SIZE + (s - 1) * TARGET_GAP
+	var border := ReferenceRect.new()
+	border.position = Vector2(-1, -1)
+	border.size = Vector2(total + 2, total + 2)
+	border.border_color = Color("#5C4033", 0.15)
+	border.border_width = 1.0
+	border.editor_only = false
+	container.add_child(border)
+	# Inner grid lines
+	var grid_color := Color("#5C4033", 0.08)
+	for i in range(1, s):
+		var offset := i * (TARGET_CELL_SIZE + TARGET_GAP) - TARGET_GAP / 2.0
+		var vline := Line2D.new()
+		vline.add_point(Vector2(offset, 0))
+		vline.add_point(Vector2(offset, total))
+		vline.width = 1.0
+		vline.default_color = grid_color
+		vline.z_index = -1
+		container.add_child(vline)
+		var hline := Line2D.new()
+		hline.add_point(Vector2(0, offset))
+		hline.add_point(Vector2(total, offset))
+		hline.width = 1.0
+		hline.default_color = grid_color
+		hline.z_index = -1
+		container.add_child(hline)
 
 
 func _build_grid_border() -> void:
@@ -564,11 +595,16 @@ func _input(event: InputEvent) -> void:
 	elif event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
 		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+			var best_d: Dictionary = {}
+			var best_dist := FOLD_BTN_THICKNESS / 2.0
 			for d in _diag_folds:
-				if _point_dist_to_segment(mb.position, d["p1"], d["p2"]) <= FOLD_BTN_THICKNESS / 2.0:
-					_on_fold(d["def"])
-					get_viewport().set_input_as_handled()
-					return
+				var dist := _point_dist_to_segment(mb.position, d["p1"], d["p2"])
+				if dist < best_dist:
+					best_dist = dist
+					best_d = d
+			if not best_d.is_empty():
+				_on_fold(best_d["def"])
+				get_viewport().set_input_as_handled()
 
 
 func _on_fold(fold_def: Dictionary) -> void:

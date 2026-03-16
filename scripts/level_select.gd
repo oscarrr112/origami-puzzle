@@ -44,13 +44,18 @@ func _build_ui() -> void:
 	subtitle.add_theme_color_override("font_color", TEXT_COLOR)
 	add_child(subtitle)
 
-	# Level buttons grid
+	# Scrollable level grid
+	var scroll := ScrollContainer.new()
+	scroll.position = Vector2(60, 250)
+	scroll.size = Vector2(600, 950)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	add_child(scroll)
+
 	var grid := GridContainer.new()
 	grid.columns = 4
-	grid.position = Vector2(100, 280)
 	grid.add_theme_constant_override("h_separation", 20)
 	grid.add_theme_constant_override("v_separation", 20)
-	add_child(grid)
+	scroll.add_child(grid)
 
 	for level in levels_data:
 		var btn := Button.new()
