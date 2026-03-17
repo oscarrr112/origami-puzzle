@@ -627,7 +627,7 @@ func _compute_targets(row: int, col: int) -> Dictionary:
 		if mirror == Vector2i(-1, -1):
 			continue
 		var side := GridModel.get_fold_side(fold_def, row, col, model.size)
-		var entry := fold_def.duplicate()
+		var entry: Dictionary = fold_def.duplicate()
 		entry["_force_side"] = side
 		if not targets.has(mirror):
 			targets[mirror] = []
