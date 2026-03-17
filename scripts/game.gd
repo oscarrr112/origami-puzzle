@@ -598,9 +598,13 @@ func _on_mouse_up(pos: Vector2) -> void:
 		return
 
 	# Not a drag — run existing click logic
+	# Only if mouse down was recorded (not consumed by tutorial overlay)
+	var had_mouse_down := _drag_start_cell != Vector2i(-1, -1)
 	_drag_start_cell = Vector2i(-1, -1)
 	_is_dragging = false
 
+	if not had_mouse_down:
+		return
 	if is_animating or not model.can_fold():
 		return
 	var cell := _pos_to_cell(pos)
@@ -1068,7 +1072,7 @@ func _start_tutorial() -> void:
 		{
 			"type": "INFO",
 			"text": "金色闪烁的格子是折叠后色块会到达的位置。",
-			"highlight": target_cell_rect,
+			"highlight": grid_rect,
 		},
 		{
 			"type": "WAIT_CLICK",
