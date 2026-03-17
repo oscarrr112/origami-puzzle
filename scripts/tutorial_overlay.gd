@@ -20,6 +20,7 @@ var _mask_right: ColorRect
 var _text_panel: PanelContainer
 var _text_label: RichTextLabel
 var _tap_hint: Label
+var _cell_highlight_nodes: Array = []
 
 const SCREEN_W := 720.0
 const SCREEN_H := 1280.0
@@ -129,6 +130,7 @@ func _show_step(step: Dictionary) -> void:
 			_waiting_for_action = true
 
 	_update_mask(_highlight_rect)
+	_update_cell_highlights(step.get("cell_highlights", []))
 
 
 func _update_mask(cutout: Rect2) -> void:
@@ -149,6 +151,30 @@ func _update_mask(cutout: Rect2) -> void:
 	var cutout_right := cutout.position.x + cutout.size.x
 	_mask_right.position = Vector2(cutout_right, cutout.position.y)
 	_mask_right.size = Vector2(maxf(SCREEN_W - cutout_right, 0), cutout.size.y)
+
+
+func _update_cell_highlights(rects: Array) -> void:
+	for node in _cell_highlight_nodes:
+		if is_instance_valid(node):
+			node.queue_free()
+	_cell_highlight_nodes.clear()
+
+	for rect in rects:
+		var r: Rect2 = rect
+		var border := ReferenceRect.new()
+		border.position = r.position
+		border.size = r.size
+		border.border_color = Color("#FFD700")
+		border.border_width = 4.0
+		border.editor_only = false
+		border.z_index = 60
+		add_child(border)
+		_cell_highlight_nodes.append(border)
+
+		var tw := border.create_tween()
+		tw.set_loops()
+		tw.tween_property(border, "border_color:a", 0.3, 0.5)
+		tw.tween_property(border, "border_color:a", 1.0, 0.5)
 
 
 func _input(event: InputEvent) -> void:

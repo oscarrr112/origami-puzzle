@@ -1036,10 +1036,19 @@ func _start_tutorial() -> void:
 		_cell_pos(3, 0) - Vector2(6, 6),
 		Vector2(CELL_SIZE + 12, CELL_SIZE + 12)
 	)
-	# Drag tutorial: highlight area covering right-half columns (cols 2-3), full height
+	# Drag tutorial: source cell (col=2, row=0) and target cell (col=2, row=3)
+	var drag_src_rect := Rect2(
+		_cell_pos(2, 0) - Vector2(4, 4),
+		Vector2(CELL_SIZE + 8, CELL_SIZE + 8)
+	)
+	var drag_tgt_rect := Rect2(
+		_cell_pos(2, 3) - Vector2(4, 4),
+		Vector2(CELL_SIZE + 8, CELL_SIZE + 8)
+	)
+	# Mask cutout covers the column from source to target
 	var drag_area_rect := Rect2(
 		_cell_pos(2, 0) - Vector2(8, 8),
-		Vector2(2 * (CELL_SIZE + CELL_GAP) + 8, total + 16)
+		Vector2(CELL_SIZE + 16, 3 * (CELL_SIZE + CELL_GAP) + CELL_SIZE + 16)
 	)
 
 	var steps: Array = [
@@ -1092,9 +1101,10 @@ func _start_tutorial() -> void:
 		},
 		{
 			"type": "WAIT_ACTION",
-			"text": "试试看！从上方的红色格子向下拖到对应的空格子。",
+			"text": "试试看！从上方的红色格子向下拖到下方的空格子。",
 			"highlight": drag_area_rect,
 			"allow_input": true,
+			"cell_highlights": [drag_src_rect, drag_tgt_rect],
 		},
 		{
 			"type": "INFO",
