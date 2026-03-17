@@ -553,15 +553,57 @@ func _build_win_popup() -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if not (event is InputEventMouseButton):
-		return
-	var mb := event as InputEventMouseButton
-	if not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
-		return
-	if is_animating or not model.can_fold():
+	if _state == InteractionState.FOLDING:
 		return
 
-	var cell := _pos_to_cell(mb.position)
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.button_index != MOUSE_BUTTON_LEFT:
+			return
+		if mb.pressed:
+			_on_mouse_down(mb.position)
+		else:
+			_on_mouse_up(mb.position)
+	elif event is InputEventMouseMotion:
+		_on_mouse_motion(event as InputEventMouseMotion)
+
+
+func _on_mouse_down(pos: Vector2) -> void:
+	if is_animating or not model.can_fold():
+		return
+	var cell := _pos_to_cell(pos)
+	if cell.x >= 0:
+		_drag_start_cell = cell
+		_drag_start_pos = pos
+		_is_dragging = false
+
+
+func _on_mouse_motion(event: InputEventMouseMotion) -> void:
+	if _drag_start_cell == Vector2i(-1, -1) or _is_dragging:
+		return
+	if event.position.distance_to(_drag_start_pos) > DRAG_THRESHOLD:
+		_is_dragging = true
+		if _state == InteractionState.SELECTED:
+			_cancel_selection()
+
+
+func _on_mouse_up(pos: Vector2) -> void:
+	if _is_dragging and _drag_start_cell != Vector2i(-1, -1):
+		var end_cell := _pos_to_cell(pos)
+		if end_cell.x >= 0 and end_cell != _drag_start_cell:
+			_try_drag_fold(_drag_start_cell, end_cell)
+		_drag_start_cell = Vector2i(-1, -1)
+		_is_dragging = false
+		get_viewport().set_input_as_handled()
+		return
+
+	# Not a drag — run existing click logic
+	_drag_start_cell = Vector2i(-1, -1)
+	_is_dragging = false
+
+	if is_animating or not model.can_fold():
+		return
+	var cell := _pos_to_cell(pos)
 
 	match _state:
 		InteractionState.IDLE:
