@@ -37,6 +37,7 @@ var _state: InteractionState = InteractionState.IDLE
 var _selected_cell: Vector2i = Vector2i(-1, -1)
 var _target_map: Dictionary = {}  # {Vector2i -> Array[Dictionary]} -- target cell -> [fold_defs]
 var _highlight_nodes: Array = []  # Nodes created for glow effects
+var _tutorial: TutorialOverlay = null
 
 var cell_rects: Array = []
 var target_rects: Array = []
@@ -62,6 +63,8 @@ func start_level(data: Dictionary) -> void:
 	_build_all()
 	_refresh_grid()
 	_draw_corner_hints()
+	if int(data["id"]) == 0:
+		_start_tutorial()
 
 
 func _build_all() -> void:
@@ -668,8 +671,12 @@ func _animate_fold(fold_data: Dictionary) -> void:
 	_state = InteractionState.IDLE
 	is_animating = false
 	_draw_corner_hints()
+	if _tutorial:
+		_tutorial.notify_action_completed()
 
 	if model.check_win():
+		if _tutorial:
+			await _tutorial.completed
 		await get_tree().create_timer(0.5).timeout
 		_show_win()
 
@@ -926,6 +933,107 @@ func _draw_corner_hints() -> void:
 		tw.set_loops()
 		tw.tween_property(hint, "border_color:a", 0.2, 0.5)
 		tw.tween_property(hint, "border_color:a", 0.8, 0.5)
+
+
+func _start_tutorial() -> void:
+	var s := model.size
+	var total := float(s * CELL_SIZE + (s - 1) * CELL_GAP)
+
+	var target_total := float(s * TARGET_CELL_SIZE + (s - 1) * TARGET_GAP)
+	var target_rect := Rect2(
+		TARGET_ORIGIN - Vector2(8, 36),
+		Vector2(target_total + 16, target_total + 44)
+	)
+	var back_total := target_total
+	var back_rect := Rect2(
+		BACK_ORIGIN - Vector2(8, 36),
+		Vector2(back_total + 16, back_total + 44)
+	)
+	var grid_rect := Rect2(
+		GRID_ORIGIN - Vector2(8, 8),
+		Vector2(total + 16, total + 16)
+	)
+	var fold_label_rect := Rect2(
+		fold_label.position - Vector2(4, 4),
+		Vector2(250, 40)
+	)
+	var v2_x := GRID_ORIGIN.x + 2 * (CELL_SIZE + CELL_GAP) - CELL_GAP / 2.0 - 1
+	var fold_line_rect := Rect2(
+		Vector2(v2_x - 20, GRID_ORIGIN.y - 12),
+		Vector2(40, total + 24)
+	)
+	var corner_rect := Rect2(
+		_cell_pos(0, 0) - Vector2(4, 4),
+		Vector2(CELL_SIZE + 8, CELL_SIZE + 8)
+	)
+	var target_cell_rect := Rect2(
+		_cell_pos(3, 0) - Vector2(6, 6),
+		Vector2(CELL_SIZE + 12, CELL_SIZE + 12)
+	)
+
+	var steps: Array = [
+		{
+			"type": "INFO",
+			"text": "欢迎来到折纸游戏！这是目标图案，你需要通过折叠让纸变成这个样子。",
+			"highlight": target_rect,
+		},
+		{
+			"type": "INFO",
+			"text": "这是当前纸的正面。红色色块在左上角。",
+			"highlight": grid_rect,
+		},
+		{
+			"type": "INFO",
+			"text": "这是纸的背面。折叠时，正面的颜色会翻到背面。",
+			"highlight": back_rect,
+		},
+		{
+			"type": "INFO",
+			"text": "你有有限的折叠次数。用完之前要完成目标！",
+			"highlight": fold_label_rect,
+		},
+		{
+			"type": "INFO",
+			"text": "虚线表示可以折叠的位置。",
+			"highlight": fold_line_rect,
+		},
+		{
+			"type": "WAIT_CLICK",
+			"text": "点击左上角绿色闪烁的位置来开始折叠。",
+			"highlight": corner_rect,
+		},
+		{
+			"type": "INFO",
+			"text": "金色闪烁的格子是折叠后色块会到达的位置。",
+			"highlight": target_cell_rect,
+		},
+		{
+			"type": "WAIT_CLICK",
+			"text": "点击金色格子来执行折叠！",
+			"highlight": target_cell_rect,
+		},
+		{
+			"type": "WAIT_ACTION",
+			"text": "",
+			"highlight": grid_rect,
+		},
+		{
+			"type": "INFO",
+			"text": "太棒了！你完成了第一次折叠！现在纸的正面已经和目标一样了。",
+			"highlight": grid_rect,
+		},
+	]
+
+	_tutorial = TutorialOverlay.new()
+	add_child(_tutorial)
+	_tutorial.completed.connect(_on_tutorial_completed)
+	_tutorial.start(steps)
+
+
+func _on_tutorial_completed() -> void:
+	if _tutorial:
+		_tutorial.queue_free()
+		_tutorial = null
 
 
 func _draw_highlights() -> void:
