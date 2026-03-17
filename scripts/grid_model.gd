@@ -162,7 +162,7 @@ func reset() -> void:
 
 # ── Fold Operations ──────────────────────────────────────────────────
 
-func fold(fold_def: Dictionary) -> Dictionary:
+func fold(fold_def: Dictionary, force_side: int = -1) -> Dictionary:
 	if folds_used >= max_folds:
 		return {}
 
@@ -176,13 +176,13 @@ func fold(fold_def: Dictionary) -> Dictionary:
 	var fold_type: String = fold_def["type"]
 	match fold_type:
 		"v":
-			result = _fold_vh(fold_type, int(fold_def["pos"]))
+			result = _fold_vh(fold_type, int(fold_def["pos"]), force_side)
 		"h":
-			result = _fold_vh(fold_type, int(fold_def["pos"]))
+			result = _fold_vh(fold_type, int(fold_def["pos"]), force_side)
 		"d_bs":
-			result = _fold_diagonal(fold_type, int(fold_def["offset"]))
+			result = _fold_diagonal(fold_type, int(fold_def["offset"]), force_side)
 		"d_fs":
-			result = _fold_diagonal(fold_type, int(fold_def["offset"]))
+			result = _fold_diagonal(fold_type, int(fold_def["offset"]), force_side)
 		_:
 			return {}
 
@@ -192,7 +192,7 @@ func fold(fold_def: Dictionary) -> Dictionary:
 	return result
 
 
-func _fold_vh(fold_type: String, fold_pos: int) -> Dictionary:
+func _fold_vh(fold_type: String, fold_pos: int, force_side: int = -1) -> Dictionary:
 	var is_vert := (fold_type == "v")
 	var result := {
 		"type": fold_type,
@@ -205,14 +205,28 @@ func _fold_vh(fold_type: String, fold_pos: int) -> Dictionary:
 	if is_vert:
 		var left := fold_pos
 		var right := size - fold_pos
-		if left <= right:
+		var fold_left: bool
+		if force_side == 0:
+			fold_left = true
+		elif force_side == 1:
+			fold_left = false
+		else:
+			fold_left = (left <= right)
+		if fold_left:
 			for i in range(fold_pos): src_indices.append(i)
 		else:
 			for i in range(fold_pos, size): src_indices.append(i)
 	else:
 		var top := fold_pos
 		var bottom := size - fold_pos
-		if top <= bottom:
+		var fold_top: bool
+		if force_side == 0:
+			fold_top = true
+		elif force_side == 1:
+			fold_top = false
+		else:
+			fold_top = (top <= bottom)
+		if fold_top:
 			for i in range(fold_pos): src_indices.append(i)
 		else:
 			for i in range(fold_pos, size): src_indices.append(i)
@@ -227,23 +241,23 @@ func _fold_vh(fold_type: String, fold_pos: int) -> Dictionary:
 		for other in range(size):
 			var sr: int
 			var sc: int
-			var tr: int
-			var tc: int
+			var target_r: int
+			var target_c: int
 			if is_vert:
-				sr = other; sc = idx; tr = other; tc = mirror
+				sr = other; sc = idx; target_r = other; target_c = mirror
 			else:
-				sr = idx; sc = other; tr = mirror; tc = other
+				sr = idx; sc = other; target_r = mirror; target_c = other
 
 			result.sources.append(Vector2i(sc, sr))
-			result.targets.append(Vector2i(tc, tr))
+			result.targets.append(Vector2i(target_c, target_r))
 
 			var src_front_xf := transform_cell(orig_front[sr][sc], fold_type)
 			var src_back_xf := transform_cell(orig_back[sr][sc], fold_type)
 
-			var tgt_back := cell_to_quads(back[tr][tc])
-			back[tr][tc] = merge_quads(tgt_back, src_front_xf)
-			var tgt_front := cell_to_quads(front[tr][tc])
-			front[tr][tc] = merge_quads(tgt_front, src_back_xf)
+			var tgt_back := cell_to_quads(back[target_r][target_c])
+			back[target_r][target_c] = merge_quads(tgt_back, src_front_xf)
+			var tgt_front := cell_to_quads(front[target_r][target_c])
+			front[target_r][target_c] = merge_quads(tgt_front, src_back_xf)
 
 			front[sr][sc] = EMPTY
 			back[sr][sc] = EMPTY
@@ -251,7 +265,7 @@ func _fold_vh(fold_type: String, fold_pos: int) -> Dictionary:
 	return result
 
 
-func _fold_diagonal(fold_type: String, offset: int) -> Dictionary:
+func _fold_diagonal(fold_type: String, offset: int, force_side: int = -1) -> Dictionary:
 	var is_bs := (fold_type == "d_bs")
 	var result := {
 		"type": fold_type,
@@ -276,7 +290,13 @@ func _fold_diagonal(fold_type: String, offset: int) -> Dictionary:
 				if is_bs: count_b += 1
 				else: count_a += 1
 
-	var fold_side_a := (count_a <= count_b)
+	var fold_side_a: bool
+	if force_side == 0:
+		fold_side_a = true
+	elif force_side == 1:
+		fold_side_a = false
+	else:
+		fold_side_a = (count_a <= count_b)
 
 	# Determine source quadrants for fold-line cells
 	var src_quads: Array[int] = []
@@ -316,37 +336,37 @@ func _fold_diagonal(fold_type: String, offset: int) -> Dictionary:
 func _transfer_whole_cell(sr: int, sc: int, fold_type: String, offset: int,
 						  is_bs: bool, orig_front: Array, orig_back: Array,
 						  result: Dictionary) -> void:
-	var tr: int
-	var tc: int
+	var target_r: int
+	var target_c: int
 	if is_bs:
-		tr = sc - offset
-		tc = sr + offset
+		target_r = sc - offset
+		target_c = sr + offset
 	else:
-		tr = offset - sc
-		tc = offset - sr
+		target_r = offset - sc
+		target_c = offset - sr
 
-	if tr < 0 or tr >= size or tc < 0 or tc >= size:
+	if target_r < 0 or target_r >= size or target_c < 0 or target_c >= size:
 		front[sr][sc] = EMPTY
 		back[sr][sc] = EMPTY
 		return
 
 	result.sources.append(Vector2i(sc, sr))
-	result.targets.append(Vector2i(tc, tr))
+	result.targets.append(Vector2i(target_c, target_r))
 
 	var src_front_xf := transform_cell(orig_front[sr][sc], fold_type)
 	var src_back_xf := transform_cell(orig_back[sr][sc], fold_type)
 
-	var tgt_back := cell_to_quads(back[tr][tc])
-	back[tr][tc] = merge_quads(tgt_back, src_front_xf)
-	var tgt_front := cell_to_quads(front[tr][tc])
-	front[tr][tc] = merge_quads(tgt_front, src_back_xf)
+	var tgt_back := cell_to_quads(back[target_r][target_c])
+	back[target_r][target_c] = merge_quads(tgt_back, src_front_xf)
+	var tgt_front := cell_to_quads(front[target_r][target_c])
+	front[target_r][target_c] = merge_quads(tgt_front, src_back_xf)
 
 	front[sr][sc] = EMPTY
 	back[sr][sc] = EMPTY
 
 
 func _transfer_fold_line_cell(row: int, col: int, fold_type: String,
-							  offset: int, is_bs: bool,
+							  _offset: int, _is_bs: bool,
 							  orig_front: Array, orig_back: Array,
 							  result: Dictionary, src_quads: Array[int]) -> void:
 	result.fold_line_cells.append(Vector2i(col, row))
@@ -391,3 +411,113 @@ static func _cells_equal(a, b) -> bool:
 	var qa := cell_to_quads(a)
 	var qb := cell_to_quads(b)
 	return qa[0] == qb[0] and qa[1] == qb[1] and qa[2] == qb[2] and qa[3] == qb[3]
+
+
+# ── Public Helpers for Interaction ──────────────────────────────────
+
+## Calculate the mirror position for a cell across a fold line.
+## Returns Vector2i(-1,-1) if out of bounds.
+static func get_mirror_pos(fold_def: Dictionary, row: int, col: int, grid_size: int) -> Vector2i:
+	var fold_type: String = fold_def["type"]
+	var target_r: int
+	var target_c: int
+	match fold_type:
+		"v":
+			var pos: int = int(fold_def["pos"])
+			target_r = row
+			target_c = 2 * pos - 1 - col
+		"h":
+			var pos: int = int(fold_def["pos"])
+			target_r = 2 * pos - 1 - row
+			target_c = col
+		"d_bs":
+			var offset: int = int(fold_def["offset"])
+			target_r = col - offset
+			target_c = row + offset
+		"d_fs":
+			var offset: int = int(fold_def["offset"])
+			target_r = offset - col
+			target_c = offset - row
+		_:
+			return Vector2i(-1, -1)
+	if target_r < 0 or target_r >= grid_size or target_c < 0 or target_c >= grid_size:
+		return Vector2i(-1, -1)
+	return Vector2i(target_c, target_r)
+
+
+## Determine which side of a fold line a cell is on.
+## Returns: 0 = side A, 1 = side B, -1 = on the fold line (diagonal only).
+static func get_fold_side(fold_def: Dictionary, row: int, col: int, grid_size: int) -> int:
+	var fold_type: String = fold_def["type"]
+	match fold_type:
+		"v":
+			var pos: int = int(fold_def["pos"])
+			if col < pos:
+				return 0  # left
+			else:
+				return 1  # right
+		"h":
+			var pos: int = int(fold_def["pos"])
+			if row < pos:
+				return 0  # top
+			else:
+				return 1  # bottom
+		"d_bs":
+			var offset: int = int(fold_def["offset"])
+			var val: int = col - row
+			if val > offset:
+				return 0  # side A (upper-right)
+			elif val < offset:
+				return 1  # side B (lower-left)
+			else:
+				return -1  # on fold line
+		"d_fs":
+			var offset: int = int(fold_def["offset"])
+			var val: int = col + row
+			if val < offset:
+				return 0  # side A (upper-left)
+			elif val > offset:
+				return 1  # side B (lower-right)
+			else:
+				return -1  # on fold line
+	return -1
+
+
+## Check if a cell is on a foldable side (smaller or equal side) of a fold line.
+static func is_foldable_side(fold_def: Dictionary, row: int, col: int, grid_size: int) -> bool:
+	var side := get_fold_side(fold_def, row, col, grid_size)
+	if side == -1:
+		return false  # on the fold line itself
+
+	var fold_type: String = fold_def["type"]
+	var count_a := 0
+	var count_b := 0
+
+	match fold_type:
+		"v":
+			var pos: int = int(fold_def["pos"])
+			count_a = pos
+			count_b = grid_size - pos
+		"h":
+			var pos: int = int(fold_def["pos"])
+			count_a = pos
+			count_b = grid_size - pos
+		"d_bs", "d_fs":
+			var is_bs := (fold_type == "d_bs")
+			var offset: int = int(fold_def["offset"])
+			for r in range(grid_size):
+				for c in range(grid_size):
+					var val: int = (c - r) if is_bs else (c + r)
+					if val > offset:
+						if is_bs: count_a += 1
+						else: count_b += 1
+					elif val < offset:
+						if is_bs: count_b += 1
+						else: count_a += 1
+
+	# Side A (0) is foldable if count_a <= count_b
+	# Side B (1) is foldable if count_b <= count_a
+	if side == 0:
+		return count_a <= count_b
+	else:
+		return count_b <= count_a
