@@ -25,7 +25,7 @@ const COLOR_MAP := {
 const BG_COLOR := Color("#F5F0E8")
 const TEXT_COLOR := Color("#5C4033")
 const FOLD_LINE_COLOR := Color("#5C4033", 0.25)
-const CORNER_HINT_COLOR := Color("#80CBC4", 0.45)  # Mint green hint for clickable corners
+const CORNER_HINT_COLOR := Color("#4CAF50", 0.45)  # Green hint for clickable corners
 const TARGET_GLOW_COLOR := Color("#FFD700")
 
 var model: GridModel
