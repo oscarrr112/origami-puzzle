@@ -11,7 +11,6 @@ const GRID_ORIGIN := Vector2(60, 350)
 const TARGET_ORIGIN := Vector2(60, 100)
 const BACK_ORIGIN := Vector2(420, 100)
 const HUD_Y_OFFSET := 60
-const FOLD_BTN_THICKNESS := 44
 const ANIM_DURATION := 0.3
 
 const COLOR_MAP := {
@@ -26,18 +25,23 @@ const COLOR_MAP := {
 const BG_COLOR := Color("#F5F0E8")
 const TEXT_COLOR := Color("#5C4033")
 const FOLD_LINE_COLOR := Color("#5C4033", 0.25)
-const FOLD_LINE_HOVER := Color("#4A90D9", 0.8)
+const SELECTED_BORDER_COLOR := Color("#FFFFFF")
+const TARGET_GLOW_COLOR := Color("#FFD700")
 
 var model: GridModel
 var level_data: Dictionary
 var is_animating := false
 
+enum InteractionState { IDLE, SELECTED, FOLDING }
+var _state: InteractionState = InteractionState.IDLE
+var _selected_cell: Vector2i = Vector2i(-1, -1)
+var _target_map: Dictionary = {}  # {Vector2i -> Array[Dictionary]} -- target cell -> [fold_defs]
+var _highlight_nodes: Array = []  # Nodes created for glow effects
+
 var cell_rects: Array = []
 var target_rects: Array = []
 var back_rects: Array = []
-var fold_buttons: Array = []
 var fold_lines: Array = []
-var _diag_folds: Array = []  # [{def, line, p1, p2}, ...] for diagonal hit testing
 var fold_label: Label
 var win_overlay: ColorRect
 var win_panel: PanelContainer
@@ -65,9 +69,7 @@ func _build_all() -> void:
 	cell_rects.clear()
 	target_rects.clear()
 	back_rects.clear()
-	fold_buttons.clear()
 	fold_lines.clear()
-	_diag_folds.clear()
 
 	_build_background()
 	_build_level_title()
@@ -308,59 +310,28 @@ func _build_fold_lines() -> void:
 
 func _build_v_fold_line(fold_pos: int, total: float) -> void:
 	var x := GRID_ORIGIN.x + fold_pos * (CELL_SIZE + CELL_GAP) - CELL_GAP / 2.0 - 1
-	var line := Line2D.new()
-	line.add_point(Vector2(x, GRID_ORIGIN.y))
-	line.add_point(Vector2(x, GRID_ORIGIN.y + total))
-	line.width = 2.0
-	line.default_color = FOLD_LINE_COLOR
-	add_child(line)
-	fold_lines.append(line)
-
-	var btn := Button.new()
-	btn.flat = true
-	btn.position = Vector2(x - FOLD_BTN_THICKNESS / 2.0, GRID_ORIGIN.y - 10)
-	btn.size = Vector2(FOLD_BTN_THICKNESS, total + 20)
-	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	btn.mouse_filter = Control.MOUSE_FILTER_STOP
-	var def := {"type": "v", "pos": fold_pos}
-	var line_ref := line
-	btn.pressed.connect(func(): _on_fold(def))
-	btn.mouse_entered.connect(func(): line_ref.default_color = FOLD_LINE_HOVER; line_ref.width = 4.0)
-	btn.mouse_exited.connect(func(): line_ref.default_color = FOLD_LINE_COLOR; line_ref.width = 2.0)
-	add_child(btn)
-	fold_buttons.append(btn)
+	var extend := 12.0
+	_draw_dashed_line(
+		Vector2(x, GRID_ORIGIN.y - extend),
+		Vector2(x, GRID_ORIGIN.y + total + extend),
+		FOLD_LINE_COLOR, 2.0, 8.0, 6.0
+	)
 
 
 func _build_h_fold_line(fold_pos: int, total: float) -> void:
 	var y := GRID_ORIGIN.y + fold_pos * (CELL_SIZE + CELL_GAP) - CELL_GAP / 2.0 - 1
-	var line := Line2D.new()
-	line.add_point(Vector2(GRID_ORIGIN.x, y))
-	line.add_point(Vector2(GRID_ORIGIN.x + total, y))
-	line.width = 2.0
-	line.default_color = FOLD_LINE_COLOR
-	add_child(line)
-	fold_lines.append(line)
-
-	var btn := Button.new()
-	btn.flat = true
-	btn.position = Vector2(GRID_ORIGIN.x - 10, y - FOLD_BTN_THICKNESS / 2.0)
-	btn.size = Vector2(total + 20, FOLD_BTN_THICKNESS)
-	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	btn.mouse_filter = Control.MOUSE_FILTER_STOP
-	var def := {"type": "h", "pos": fold_pos}
-	var line_ref := line
-	btn.pressed.connect(func(): _on_fold(def))
-	btn.mouse_entered.connect(func(): line_ref.default_color = FOLD_LINE_HOVER; line_ref.width = 4.0)
-	btn.mouse_exited.connect(func(): line_ref.default_color = FOLD_LINE_COLOR; line_ref.width = 2.0)
-	add_child(btn)
-	fold_buttons.append(btn)
+	var extend := 12.0
+	_draw_dashed_line(
+		Vector2(GRID_ORIGIN.x - extend, y),
+		Vector2(GRID_ORIGIN.x + total + extend, y),
+		FOLD_LINE_COLOR, 2.0, 8.0, 6.0
+	)
 
 
 func _build_diagonal_fold_line(fold_type: String, offset: int, _total: float) -> void:
 	var is_bs := (fold_type == "d_bs")
 	var s := model.size
 
-	# Find first and last cell on the fold line
 	var first_cell := Vector2i(-1, -1)
 	var last_cell := Vector2i(-1, -1)
 	for row in range(s):
@@ -384,30 +355,29 @@ func _build_diagonal_fold_line(fold_type: String, offset: int, _total: float) ->
 		p1 = _cell_pos(first_cell.x, first_cell.y) + Vector2(CELL_SIZE, 0)
 		p2 = _cell_pos(last_cell.x, last_cell.y) + Vector2(0, CELL_SIZE)
 
-	var line := Line2D.new()
-	line.add_point(p1)
-	line.add_point(p2)
-	line.width = 2.0
-	line.default_color = FOLD_LINE_COLOR
-	line.z_index = 10
-	add_child(line)
-	fold_lines.append(line)
+	# Extend beyond grid
+	var dir := (p2 - p1).normalized()
+	p1 -= dir * 12.0
+	p2 += dir * 12.0
 
-	var def := {"type": fold_type, "offset": offset}
-	_diag_folds.append({"def": def, "line": line, "p1": p1, "p2": p2})
+	_draw_dashed_line(p1, p2, FOLD_LINE_COLOR, 2.0, 8.0, 6.0)
 
-	# Visible indicator circles at endpoints
-	for pt in [p1, p2]:
-		var indicator := Polygon2D.new()
-		var circle_pts := PackedVector2Array()
-		var radius := 8.0
-		for j in range(12):
-			var angle := j * TAU / 12.0
-			circle_pts.append(pt + Vector2(cos(angle), sin(angle)) * radius)
-		indicator.polygon = circle_pts
-		indicator.color = FOLD_LINE_COLOR
-		indicator.z_index = 10
-		add_child(indicator)
+
+func _draw_dashed_line(p1: Vector2, p2: Vector2, color: Color, width: float, dash: float, gap: float) -> void:
+	var dir := (p2 - p1).normalized()
+	var total_len := p1.distance_to(p2)
+	var pos := 0.0
+	while pos < total_len:
+		var dash_end := minf(pos + dash, total_len)
+		var line := Line2D.new()
+		line.add_point(p1 + dir * pos)
+		line.add_point(p1 + dir * dash_end)
+		line.width = width
+		line.default_color = color
+		line.z_index = 1
+		add_child(line)
+		fold_lines.append(line)
+		pos += dash + gap
 
 
 func _build_hud() -> void:
@@ -573,44 +543,122 @@ func _build_win_popup() -> void:
 	add_child(win_panel)
 
 
-static func _point_dist_to_segment(point: Vector2, p1: Vector2, p2: Vector2) -> float:
-	var line_vec := p2 - p1
-	var len_sq := line_vec.length_squared()
-	if len_sq < 0.001:
-		return point.distance_to(p1)
-	var t: float = clamp((point - p1).dot(line_vec) / len_sq, 0.0, 1.0)
-	return point.distance_to(p1 + line_vec * t)
-
-
 func _input(event: InputEvent) -> void:
-	if _diag_folds.is_empty():
+	if not (event is InputEventMouseButton):
 		return
-	if event is InputEventMouseMotion:
-		var mm := event as InputEventMouseMotion
-		for d in _diag_folds:
-			var near := _point_dist_to_segment(mm.position, d["p1"], d["p2"]) <= FOLD_BTN_THICKNESS / 2.0
-			var line: Line2D = d["line"]
-			line.default_color = FOLD_LINE_HOVER if near else FOLD_LINE_COLOR
-			line.width = 4.0 if near else 2.0
-	elif event is InputEventMouseButton:
-		var mb := event as InputEventMouseButton
-		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
-			var best_d: Dictionary = {}
-			var best_dist := FOLD_BTN_THICKNESS / 2.0
-			for d in _diag_folds:
-				var dist := _point_dist_to_segment(mb.position, d["p1"], d["p2"])
-				if dist < best_dist:
-					best_dist = dist
-					best_d = d
-			if not best_d.is_empty():
-				_on_fold(best_d["def"])
+	var mb := event as InputEventMouseButton
+	if not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
+		return
+	if is_animating or not model.can_fold():
+		return
+
+	var cell := _pos_to_cell(mb.position)
+
+	match _state:
+		InteractionState.IDLE:
+			if cell.x >= 0 and _is_valid_edge_cell(cell.y, cell.x):
+				_select_cell(cell)
+				get_viewport().set_input_as_handled()
+		InteractionState.SELECTED:
+			if cell == _selected_cell:
+				_cancel_selection()
+				get_viewport().set_input_as_handled()
+			elif _target_map.has(cell):
+				var fold_defs: Array = _target_map[cell]
+				_cancel_selection()
+				_on_fold_with_side(fold_defs[0])
+				get_viewport().set_input_as_handled()
+			else:
+				_cancel_selection()
 				get_viewport().set_input_as_handled()
 
 
-func _on_fold(fold_def: Dictionary) -> void:
+## Convert screen position to grid cell coordinates. Returns (-1,-1) if invalid.
+func _pos_to_cell(pos: Vector2) -> Vector2i:
+	var local := pos - GRID_ORIGIN
+	if local.x < 0 or local.y < 0:
+		return Vector2i(-1, -1)
+	var step := float(CELL_SIZE + CELL_GAP)
+	var col := int(local.x / step)
+	var row := int(local.y / step)
+	if col >= model.size or row >= model.size:
+		return Vector2i(-1, -1)
+	# Check click is within cell, not in gap
+	var local_x := local.x - col * step
+	var local_y := local.y - row * step
+	if local_x > CELL_SIZE or local_y > CELL_SIZE:
+		return Vector2i(-1, -1)
+	return Vector2i(col, row)
+
+
+## Check if cell is a non-empty edge cell that can be folded.
+func _is_valid_edge_cell(row: int, col: int) -> bool:
+	if GridModel.is_empty_cell(model.front[row][col]):
+		return false
+	# Check if on visual edge (grid boundary or adjacent to empty)
+	var on_edge := false
+	if row == 0 or row == model.size - 1 or col == 0 or col == model.size - 1:
+		on_edge = true
+	else:
+		if GridModel.is_empty_cell(model.front[row - 1][col]):
+			on_edge = true
+		elif GridModel.is_empty_cell(model.front[row + 1][col]):
+			on_edge = true
+		elif GridModel.is_empty_cell(model.front[row][col - 1]):
+			on_edge = true
+		elif GridModel.is_empty_cell(model.front[row][col + 1]):
+			on_edge = true
+	if not on_edge:
+		return false
+	# Check if at least one fold line affects this cell
+	for fold_def in model.available_folds:
+		if GridModel.is_foldable_side(fold_def, row, col, model.size):
+			return true
+	return false
+
+
+## Compute all reachable target positions for a cell.
+func _compute_targets(row: int, col: int) -> Dictionary:
+	var targets := {}
+	for fold_def in model.available_folds:
+		if not GridModel.is_foldable_side(fold_def, row, col, model.size):
+			continue
+		var mirror := GridModel.get_mirror_pos(fold_def, row, col, model.size)
+		if mirror == Vector2i(-1, -1):
+			continue
+		var side := GridModel.get_fold_side(fold_def, row, col, model.size)
+		var entry := fold_def.duplicate()
+		entry["_force_side"] = side
+		if not targets.has(mirror):
+			targets[mirror] = []
+		targets[mirror].append(entry)
+	return targets
+
+
+func _select_cell(cell: Vector2i) -> void:
+	_selected_cell = cell
+	_target_map = _compute_targets(cell.y, cell.x)
+	_state = InteractionState.SELECTED
+	_draw_highlights()
+
+
+func _cancel_selection() -> void:
+	_selected_cell = Vector2i(-1, -1)
+	_target_map.clear()
+	_state = InteractionState.IDLE
+	_clear_highlights()
+
+
+func _on_fold_with_side(fold_def_with_side: Dictionary) -> void:
+	var force_side: int = fold_def_with_side.get("_force_side", -1)
+	var fold_def := {}
+	for key in fold_def_with_side:
+		if not key.begins_with("_"):
+			fold_def[key] = fold_def_with_side[key]
+
 	if is_animating or not model.can_fold():
 		return
-	var result := model.fold(fold_def)
+	var result := model.fold(fold_def, force_side)
 	if result.is_empty():
 		return
 	_animate_fold(result)
@@ -618,7 +666,7 @@ func _on_fold(fold_def: Dictionary) -> void:
 
 func _animate_fold(fold_data: Dictionary) -> void:
 	is_animating = true
-	_set_fold_buttons_enabled(false)
+	_state = InteractionState.FOLDING
 
 	var fold_type: String = fold_data["type"]
 	match fold_type:
@@ -629,7 +677,7 @@ func _animate_fold(fold_data: Dictionary) -> void:
 
 	_refresh_grid()
 	_update_fold_label()
-	_set_fold_buttons_enabled(true)
+	_state = InteractionState.IDLE
 	is_animating = false
 
 	if model.check_win():
@@ -803,11 +851,6 @@ func _animate_diagonal_fold(fold_data: Dictionary) -> void:
 			cell_node.get_node(qname).modulate.a = 1.0
 
 
-func _set_fold_buttons_enabled(enabled: bool) -> void:
-	for btn in fold_buttons:
-		btn.disabled = not enabled
-
-
 func _refresh_grid() -> void:
 	var s := model.size
 	for row in range(s):
@@ -825,6 +868,8 @@ func _update_fold_label() -> void:
 func _on_undo() -> void:
 	if is_animating:
 		return
+	if _state == InteractionState.SELECTED:
+		_cancel_selection()
 	model.undo()
 	_refresh_grid()
 	_update_fold_label()
@@ -833,6 +878,8 @@ func _on_undo() -> void:
 func _on_reset() -> void:
 	if is_animating:
 		return
+	if _state == InteractionState.SELECTED:
+		_cancel_selection()
 	model.reset()
 	_refresh_grid()
 	_update_fold_label()
@@ -865,3 +912,61 @@ func _hide_back() -> void:
 func _show_win() -> void:
 	win_overlay.visible = true
 	win_panel.visible = true
+
+
+func _draw_highlights() -> void:
+	_clear_highlights()
+	# Selected cell -- white border
+	var sel_pos := _cell_pos(_selected_cell.x, _selected_cell.y)
+	var sel_border := ReferenceRect.new()
+	sel_border.position = sel_pos - Vector2(2, 2)
+	sel_border.size = Vector2(CELL_SIZE + 4, CELL_SIZE + 4)
+	sel_border.border_color = SELECTED_BORDER_COLOR
+	sel_border.border_width = 3.0
+	sel_border.editor_only = false
+	sel_border.z_index = 20
+	add_child(sel_border)
+	_highlight_nodes.append(sel_border)
+
+	# Target cells -- gold glow border with pulse
+	for target_cell in _target_map.keys():
+		var tgt_pos := _cell_pos(target_cell.x, target_cell.y)
+
+		# Outer glow (wider, semi-transparent)
+		var glow := ReferenceRect.new()
+		glow.position = tgt_pos - Vector2(4, 4)
+		glow.size = Vector2(CELL_SIZE + 8, CELL_SIZE + 8)
+		glow.border_color = Color(TARGET_GLOW_COLOR, 0.4)
+		glow.border_width = 5.0
+		glow.editor_only = false
+		glow.z_index = 19
+		add_child(glow)
+		_highlight_nodes.append(glow)
+
+		# Inner border
+		var border := ReferenceRect.new()
+		border.position = tgt_pos - Vector2(2, 2)
+		border.size = Vector2(CELL_SIZE + 4, CELL_SIZE + 4)
+		border.border_color = TARGET_GLOW_COLOR
+		border.border_width = 3.0
+		border.editor_only = false
+		border.z_index = 20
+		add_child(border)
+		_highlight_nodes.append(border)
+
+		# Pulse animation -- use node-owned tweens so they auto-stop on queue_free()
+		var tween := border.create_tween()
+		tween.set_loops()
+		tween.tween_property(border, "border_color:a", 0.4, 0.75)
+		tween.tween_property(border, "border_color:a", 1.0, 0.75)
+		var tween2 := glow.create_tween()
+		tween2.set_loops()
+		tween2.tween_property(glow, "border_color:a", 0.15, 0.75)
+		tween2.tween_property(glow, "border_color:a", 0.4, 0.75)
+
+
+func _clear_highlights() -> void:
+	for node in _highlight_nodes:
+		if is_instance_valid(node):
+			node.queue_free()
+	_highlight_nodes.clear()
