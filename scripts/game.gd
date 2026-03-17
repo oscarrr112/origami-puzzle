@@ -1093,11 +1093,6 @@ func _start_tutorial() -> void:
 			"allow_input": true,
 		},
 		{
-			"type": "WAIT_ACTION",
-			"text": "",
-			"highlight": grid_rect,
-		},
-		{
 			"type": "INFO",
 			"text": "太棒了！你学会了两种折叠方式：点击和拖拽，都可以完成折叠。",
 			"highlight": grid_rect,

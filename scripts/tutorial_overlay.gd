@@ -156,8 +156,14 @@ func _input(event: InputEvent) -> void:
 		return
 	if _waiting_for_action:
 		var step: Dictionary = _steps[_current_step]
-		if not step.get("allow_input", false):
-			get_viewport().set_input_as_handled()
+		if step.get("allow_input", false):
+			return
+		# Block new presses but let release/motion through
+		# so game.gd can complete ongoing interactions
+		if event is InputEventMouseButton:
+			var mb := event as InputEventMouseButton
+			if mb.pressed:
+				get_viewport().set_input_as_handled()
 		return
 
 	if event is InputEventMouseButton:
