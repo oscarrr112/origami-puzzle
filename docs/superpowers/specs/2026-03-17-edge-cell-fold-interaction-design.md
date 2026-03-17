@@ -18,6 +18,8 @@
 
 这彻底解决了方向歧义——玩家自己选目标，而非系统决定方向。
 
+**重要：** 本设计只改变交互触发方式，不改变任何折叠逻辑和过关判定。底层 `grid_model.gd` 的折叠运算完全不变。
+
 ## 交互状态机
 
 ```
@@ -40,6 +42,7 @@ IDLE ──(点击边缘格子)──→ SELECTED ──(点击目标格子)─�
   - **目标格子** → 进入 FOLDING
   - **已选格子** → 取消，回到 IDLE
   - **非目标的空白区域** → 取消，回到 IDLE
+- 按**撤销**或**重置**按钮 → 先取消选中（清除所有高亮），回到 IDLE，然后执行撤销/重置
 
 ### FOLDING（折叠中）
 
@@ -48,13 +51,14 @@ IDLE ──(点击边缘格子)──→ SELECTED ──(点击目标格子)─�
 
 ## 边缘格子定义
 
-网格中满足以下条件之一的格子为边缘格子：
-- `row == 0` 或 `row == size - 1`
-- `col == 0` 或 `col == size - 1`
+**边缘格子** = 当前状态下视觉上处于边缘的非空格子。具体判断：
 
-**额外条件：**
-- 格子非空（未被之前的折叠清空）
-- 至少被一条 `available_folds` 中的折线影响（在其源侧）
+- 格子非空（`front` 不为空数组/0）
+- 满足以下条件之一：
+  - `row == 0` 或 `row == size - 1`（网格上下边界）
+  - `col == 0` 或 `col == size - 1`（网格左右边界）
+  - 上下左右四邻中至少有一个是空格子（折叠后产生的新边缘）
+- 至少被一条 `available_folds` 中的折线影响（在其可折叠侧）
 
 角落格子同时属于两条边，可能被更多折线影响，不需要特殊处理。
 
@@ -63,11 +67,12 @@ IDLE ──(点击边缘格子)──→ SELECTED ──(点击目标格子)─�
 玩家点击边缘格子 `(row, col)` 后，遍历所有 `available_folds`：
 
 对每条折线 `fold_def`：
-1. 判断 `(row, col)` 是否在该折线的**源侧**（较小方）
+1. 判断 `(row, col)` 是否在该折线的**可折叠侧**（较小方，或相等时两侧均可）
 2. 如果是，计算镜像目标位置 `(target_row, target_col)`
-3. 记录映射：`(target_row, target_col) → fold_def`
+3. 过滤：如果目标位置超出网格范围 `[0, size)`，跳过
+4. 记录映射：`(target_row, target_col) → fold_def`
 
-结果是一个字典 `target_map: {Vector2i → Dictionary}`，存储目标格子到折线定义的映射。
+结果是一个字典 `target_map: {Vector2i → Array[Dictionary]}`，存储目标格子到折线定义的映射。使用 Array 是因为理论上多条折线可能映射到同一目标位置（虽然实际关卡中极少出现）；如果发生，点击该目标时使用数组中的第一条折线。
 
 ### V/H 折线的镜像计算
 
@@ -79,7 +84,9 @@ IDLE ──(点击边缘格子)──→ SELECTED ──(点击目标格子)─�
 - **d_bs (offset):** `target_row = col - offset`, `target_col = row + offset`
 - **d_fs (offset):** `target_row = offset - col`, `target_col = offset - row`
 
-### 源侧判断
+### 可折叠侧判断
+
+对于每条折线，判断被点击的格子是否在可折叠侧：
 
 - **v (pos):** 格子在 `[0, pos)` 或 `[pos, size)` 中**较小或相等**的一侧（相等时两侧都有效）
 - **h (pos):** 格子在 `[0, pos)` 或 `[pos, size)` 中**较小或相等**的一侧（相等时两侧都有效）
@@ -88,7 +95,7 @@ IDLE ──(点击边缘格子)──→ SELECTED ──(点击目标格子)─�
 
 **关键改变：** 旧逻辑中，相等时系统固定选择一侧折叠。新逻辑中，相等时两侧的边缘格子都可点击，玩家通过选择哪一侧的格子来决定折叠方向。这是新交互的核心价值——彻底消除方向歧义。
 
-注意：对角折线上的格子（`val == offset`）不属于源侧，其象限会被部分折叠。对于边缘格子的交互，如果格子恰好在折线上，不将其视为有效源格子（这些格子的象限折叠已由模型自动处理）。
+注意：对角折线上的格子（`val == offset`）不属于可折叠侧，其象限会被部分折叠。对于边缘格子的交互，如果格子恰好在折线上，不将其视为有效源格子（这些格子的象限折叠已由模型自动处理）。
 
 ## 折线视觉改动
 
@@ -145,10 +152,34 @@ IDLE ──(点击边缘格子)──→ SELECTED ──(点击目标格子)─�
 
 1. 检测 `InputEventMouseButton`（左键按下）
 2. 将点击坐标转换为网格坐标：`cell = floor((click_pos - GRID_ORIGIN) / (CELL_SIZE + CELL_GAP))`
-3. 验证坐标在网格范围内
-4. 根据当前状态分发：
+3. 验证坐标在网格范围内（`0 <= cell.x < size && 0 <= cell.y < size`）
+4. 验证点击位置在格子内而非间隙中：`local_offset = (click_pos - GRID_ORIGIN) % (CELL_SIZE + CELL_GAP)` 需 `< CELL_SIZE`
+5. 根据当前状态分发：
    - **IDLE：** 检查是否为有效边缘格子 → 计算 target_map → 进入 SELECTED
-   - **SELECTED：** 检查是否为目标格子 → 执行折叠；否则取消
+   - **SELECTED：** 检查是否为目标格子 → 执行折叠；否则取消回到 IDLE
+
+## `force_side` 参数规格
+
+`grid_model.gd` 的 `fold()` 方法新增可选参数：
+
+```gdscript
+func fold(fold_def: Dictionary, force_side: int = -1) -> void
+```
+
+**参数值：**
+- `-1`（默认）：自动选择较小方（保持现有行为，向后兼容）
+- `0`：强制折叠 side A（V: 左侧/上侧 `[0, pos)`；H: 上侧 `[0, pos)`；d_bs/d_fs: side A）
+- `1`：强制折叠 side B（V: 右侧/下侧 `[pos, size)`；H: 下侧 `[pos, size)`；d_bs/d_fs: side B）
+
+**交互映射：** 当玩家点击边缘格子时，`game.gd` 根据该格子在折线的哪一侧来确定 `force_side` 值，然后传给 `fold()`。
+
+**V/H 折叠中 side 的定义：**
+- Side A (0): `col < pos`（竖折左侧）或 `row < pos`（横折上侧）
+- Side B (1): `col >= pos`（竖折右侧）或 `row >= pos`（横折下侧）
+
+**对角折叠中 side 的定义：**
+- Side A (0): `col - row > offset`（d_bs）或 `col + row < offset`（d_fs）
+- Side B (1): `col - row < offset`（d_bs）或 `col + row > offset`（d_fs）
 
 ## 需要修改的文件
 
@@ -164,4 +195,4 @@ IDLE ──(点击边缘格子)──→ SELECTED ──(点击目标格子)─�
 - **`scripts/grid_model.gd`：** 需要改动
   - 公开源侧判断逻辑（供 game.gd 计算目标使用）
   - 公开镜像位置计算逻辑
-  - `fold()` 方法新增可选参数 `force_side: int = -1`，允许调用方指定折叠方向（当两侧相等时，不再由模型自动决定，而是由玩家的点击决定）
+  - `fold()` 方法新增可选参数 `force_side: int = -1`
