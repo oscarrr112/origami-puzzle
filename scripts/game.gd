@@ -25,7 +25,7 @@ const COLOR_MAP := {
 const BG_COLOR := Color("#F5F0E8")
 const TEXT_COLOR := Color("#5C4033")
 const FOLD_LINE_COLOR := Color("#5C4033", 0.25)
-const SELECTED_BORDER_COLOR := Color("#FFFFFF")
+const CORNER_HINT_COLOR := Color("#4CAF50", 0.6)  # Green hint for clickable corners
 const TARGET_GLOW_COLOR := Color("#FFD700")
 
 var model: GridModel
@@ -556,7 +556,7 @@ func _input(event: InputEvent) -> void:
 
 	match _state:
 		InteractionState.IDLE:
-			if cell.x >= 0 and _is_valid_edge_cell(cell.y, cell.x):
+			if cell.x >= 0 and _is_clickable_cell(cell.y, cell.x):
 				_select_cell(cell)
 				get_viewport().set_input_as_handled()
 		InteractionState.SELECTED:
@@ -591,24 +591,11 @@ func _pos_to_cell(pos: Vector2) -> Vector2i:
 	return Vector2i(col, row)
 
 
-## Check if cell is a non-empty edge cell that can be folded.
-func _is_valid_edge_cell(row: int, col: int) -> bool:
-	if GridModel.is_empty_cell(model.front[row][col]):
-		return false
-	# Check if on visual edge (grid boundary or adjacent to empty)
-	var on_edge := false
-	if row == 0 or row == model.size - 1 or col == 0 or col == model.size - 1:
-		on_edge = true
-	else:
-		if GridModel.is_empty_cell(model.front[row - 1][col]):
-			on_edge = true
-		elif GridModel.is_empty_cell(model.front[row + 1][col]):
-			on_edge = true
-		elif GridModel.is_empty_cell(model.front[row][col - 1]):
-			on_edge = true
-		elif GridModel.is_empty_cell(model.front[row][col + 1]):
-			on_edge = true
-	if not on_edge:
+## Check if cell is a corner cell that can trigger at least one fold.
+## Corners are always clickable, even when empty (empty = transparent color).
+func _is_clickable_cell(row: int, col: int) -> bool:
+	var is_corner := (row == 0 or row == model.size - 1) and (col == 0 or col == model.size - 1)
+	if not is_corner:
 		return false
 	# Check if at least one fold line affects this cell
 	for fold_def in model.available_folds:
@@ -916,28 +903,37 @@ func _show_win() -> void:
 
 func _draw_highlights() -> void:
 	_clear_highlights()
-	# Selected cell -- white border
+	# Selected corner — green border
 	var sel_pos := _cell_pos(_selected_cell.x, _selected_cell.y)
 	var sel_border := ReferenceRect.new()
-	sel_border.position = sel_pos - Vector2(2, 2)
-	sel_border.size = Vector2(CELL_SIZE + 4, CELL_SIZE + 4)
-	sel_border.border_color = SELECTED_BORDER_COLOR
-	sel_border.border_width = 3.0
+	sel_border.position = sel_pos - Vector2(3, 3)
+	sel_border.size = Vector2(CELL_SIZE + 6, CELL_SIZE + 6)
+	sel_border.border_color = CORNER_HINT_COLOR
+	sel_border.border_width = 4.0
 	sel_border.editor_only = false
 	sel_border.z_index = 20
 	add_child(sel_border)
 	_highlight_nodes.append(sel_border)
 
-	# Target cells -- gold glow border with pulse
+	# Target cells — gold glow with strong pulse
 	for target_cell in _target_map.keys():
 		var tgt_pos := _cell_pos(target_cell.x, target_cell.y)
 
+		# Semi-transparent gold overlay for stronger visual
+		var overlay := ColorRect.new()
+		overlay.position = tgt_pos
+		overlay.size = Vector2(CELL_SIZE, CELL_SIZE)
+		overlay.color = Color(TARGET_GLOW_COLOR, 0.25)
+		overlay.z_index = 18
+		add_child(overlay)
+		_highlight_nodes.append(overlay)
+
 		# Outer glow (wider, semi-transparent)
 		var glow := ReferenceRect.new()
-		glow.position = tgt_pos - Vector2(4, 4)
-		glow.size = Vector2(CELL_SIZE + 8, CELL_SIZE + 8)
-		glow.border_color = Color(TARGET_GLOW_COLOR, 0.4)
-		glow.border_width = 5.0
+		glow.position = tgt_pos - Vector2(5, 5)
+		glow.size = Vector2(CELL_SIZE + 10, CELL_SIZE + 10)
+		glow.border_color = Color(TARGET_GLOW_COLOR, 0.5)
+		glow.border_width = 6.0
 		glow.editor_only = false
 		glow.z_index = 19
 		add_child(glow)
@@ -948,21 +944,25 @@ func _draw_highlights() -> void:
 		border.position = tgt_pos - Vector2(2, 2)
 		border.size = Vector2(CELL_SIZE + 4, CELL_SIZE + 4)
 		border.border_color = TARGET_GLOW_COLOR
-		border.border_width = 3.0
+		border.border_width = 4.0
 		border.editor_only = false
 		border.z_index = 20
 		add_child(border)
 		_highlight_nodes.append(border)
 
-		# Pulse animation -- use node-owned tweens so they auto-stop on queue_free()
+		# Pulse animation — stronger range, faster
 		var tween := border.create_tween()
 		tween.set_loops()
-		tween.tween_property(border, "border_color:a", 0.4, 0.75)
-		tween.tween_property(border, "border_color:a", 1.0, 0.75)
+		tween.tween_property(border, "border_color:a", 0.2, 0.5)
+		tween.tween_property(border, "border_color:a", 1.0, 0.5)
 		var tween2 := glow.create_tween()
 		tween2.set_loops()
-		tween2.tween_property(glow, "border_color:a", 0.15, 0.75)
-		tween2.tween_property(glow, "border_color:a", 0.4, 0.75)
+		tween2.tween_property(glow, "border_color:a", 0.1, 0.5)
+		tween2.tween_property(glow, "border_color:a", 0.5, 0.5)
+		var tween3 := overlay.create_tween()
+		tween3.set_loops()
+		tween3.tween_property(overlay, "color:a", 0.1, 0.5)
+		tween3.tween_property(overlay, "color:a", 0.3, 0.5)
 
 
 func _clear_highlights() -> void:
