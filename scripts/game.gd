@@ -915,6 +915,12 @@ func _draw_highlights() -> void:
 	add_child(sel_border)
 	_highlight_nodes.append(sel_border)
 
+	# Green pulse on selected corner
+	var sel_tween := sel_border.create_tween()
+	sel_tween.set_loops()
+	sel_tween.tween_property(sel_border, "border_color:a", 0.2, 0.5)
+	sel_tween.tween_property(sel_border, "border_color:a", 0.8, 0.5)
+
 	# Target cells — gold glow with strong pulse
 	for target_cell in _target_map.keys():
 		var tgt_pos := _cell_pos(target_cell.x, target_cell.y)
