@@ -8,8 +8,8 @@ Add drag-based folding interaction to the origami puzzle game. Users can drag fr
 
 - **Coexistence**: Drag and two-click (corner select → target click) both work simultaneously
 - **Any cell as start**: Drag start is not limited to corners — any grid cell is valid
-- **Minimal feedback**: Only highlight the start cell on press; no drag line or real-time target highlighting
-- **Single match guaranteed**: Mathematically proven that at most one fold definition can map a given source cell to a given target cell, so no disambiguation needed
+- **Minimal feedback**: No drag line, no real-time target highlighting. Valid fold executes on release; invalid drag is silently ignored.
+- **Single match guaranteed**: For any pair of distinct cells, at most one fold definition can map source to target. V/H vs V/H, V/H vs diagonal, and same-type diagonals all yield contradictions or non-integer solutions when equating mirror formulas. Cross-type diagonals (d_bs + d_fs) produce solutions only on both fold lines simultaneously, which are excluded by the `side == -1` skip. Therefore no disambiguation is needed.
 
 ## Scope
 
@@ -30,25 +30,42 @@ var _is_dragging: bool = false                       # Whether drag threshold ex
 
 20 pixels. Below this, the gesture is treated as a click (existing logic). Above, it becomes a drag.
 
-### _input() Changes
+### _input() Restructuring
 
-The existing `_input()` handles `InputEventMouseButton` (pressed only). The redesigned version:
+The existing `_input()` only handles `InputEventMouseButton` with `pressed == true` and early-returns on other event types. The restructured version must handle three event types: mouse button down, mouse motion, and mouse button up.
 
-**Mouse button down (left)**:
-1. Convert position to grid cell via `_pos_to_cell()`
-2. If valid cell: store `_drag_start_cell`, `_drag_start_pos`, set `_is_dragging = false`
-3. Apply subtle highlight to start cell
+```gdscript
+func _input(event: InputEvent) -> void:
+    if _state == InteractionState.FOLDING:
+        return
 
-**Mouse motion**:
+    if event is InputEventMouseButton:
+        var mb := event as InputEventMouseButton
+        if mb.button_index != MOUSE_BUTTON_LEFT:
+            return
+        if mb.pressed:
+            _on_mouse_down(mb.position)
+        else:
+            _on_mouse_up(mb.position)
+    elif event is InputEventMouseMotion:
+        _on_mouse_motion(event as InputEventMouseMotion)
+```
+
+**_on_mouse_down(pos)**:
+1. Guard: `if is_animating or not model.can_fold(): return`
+2. Convert position to grid cell via `_pos_to_cell()`
+3. If valid cell: store `_drag_start_cell`, `_drag_start_pos`, set `_is_dragging = false`
+
+**_on_mouse_motion(event)**:
 1. If `_drag_start_cell` is valid and `!_is_dragging`:
 2. Check distance from `_drag_start_pos`
 3. If > 20px: set `_is_dragging = true`, cancel any existing corner selection via `_cancel_selection()`
 
-**Mouse button up (left)**:
+**_on_mouse_up(pos)**:
 1. If `_is_dragging` and `_drag_start_cell` is valid:
    - Compute end cell from release position
    - If end cell is valid and different from start: call `_try_drag_fold(start, end)`
-   - Clear highlight, reset drag state
+   - Reset drag state (`_drag_start_cell = Vector2i(-1, -1)`)
 2. If not dragging:
    - Execute existing click logic (corner select / target select)
    - Reset drag state
@@ -57,16 +74,19 @@ The existing `_input()` handles `InputEventMouseButton` (pressed only). The rede
 
 New function. Iterates `model.available_folds`:
 
-```
-for fold_def in model.available_folds:
-    side = GridModel.get_fold_side(fold_def, from_cell.y, from_cell.x, model.size)
-    if side == -1:  # On fold line
-        continue
-    mirror = GridModel.get_mirror_pos(fold_def, from_cell.y, from_cell.x, model.size)
-    if mirror == to_cell:
-        _on_fold_with_side(fold_def_with_side)  # Reuse existing fold execution
-        return true
-return false
+```gdscript
+func _try_drag_fold(from_cell: Vector2i, to_cell: Vector2i) -> bool:
+    for fold_def in model.available_folds:
+        var side := GridModel.get_fold_side(fold_def, from_cell.y, from_cell.x, model.size)
+        if side == -1:  # On fold line — cell maps to itself, blocked by same-cell check
+            continue
+        var mirror := GridModel.get_mirror_pos(fold_def, from_cell.y, from_cell.x, model.size)
+        if mirror == to_cell:
+            var entry := fold_def.duplicate()
+            entry["_force_side"] = side
+            _on_fold_with_side(entry)
+            return true
+    return false
 ```
 
 ### Reused Functions (no modifications)
@@ -82,5 +102,7 @@ return false
 - **Drag starts outside grid**: `_drag_start_cell` stays (-1,-1), drag is ignored
 - **Drag ends outside grid**: No valid end cell, fold not attempted
 - **Drag to same cell**: `end_cell != start_cell` check prevents no-op
+- **Start cell on fold line**: `side == -1` is skipped in `_try_drag_fold`. This is safe because diagonal fold-line cells map to themselves, and the same-cell check already prevents that
+- **No folds remaining**: `can_fold()` guard in `_on_mouse_down` prevents starting a drag when folds are exhausted
 - **State is FOLDING**: Early return at top of `_input()` prevents interaction during animation
 - **Tutorial active**: Tutorial overlay consumes input events before they reach `_input()`
