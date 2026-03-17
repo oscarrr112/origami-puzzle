@@ -25,7 +25,7 @@ const COLOR_MAP := {
 const BG_COLOR := Color("#F5F0E8")
 const TEXT_COLOR := Color("#5C4033")
 const FOLD_LINE_COLOR := Color("#5C4033", 0.25)
-const CORNER_HINT_COLOR := Color("#4CAF50", 0.6)  # Green hint for clickable corners
+const CORNER_HINT_COLOR := Color("#80CBC4", 0.45)  # Mint green hint for clickable corners
 const TARGET_GLOW_COLOR := Color("#FFD700")
 
 var model: GridModel
@@ -931,8 +931,8 @@ func _draw_corner_hints() -> void:
 		_highlight_nodes.append(hint)
 		var tw := hint.create_tween()
 		tw.set_loops()
-		tw.tween_property(hint, "border_color:a", 0.2, 0.5)
-		tw.tween_property(hint, "border_color:a", 0.8, 0.5)
+		tw.tween_property(hint, "border_color:a", 0.15, 1.0)
+		tw.tween_property(hint, "border_color:a", 0.55, 1.0)
 
 
 func _start_tutorial() -> void:
