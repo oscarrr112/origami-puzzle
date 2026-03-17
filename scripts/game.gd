@@ -39,6 +39,11 @@ var _target_map: Dictionary = {}  # {Vector2i -> Array[Dictionary]} -- target ce
 var _highlight_nodes: Array = []  # Nodes created for glow effects
 var _tutorial: TutorialOverlay = null
 
+var _drag_start_cell: Vector2i = Vector2i(-1, -1)
+var _drag_start_pos: Vector2 = Vector2.ZERO
+var _is_dragging: bool = false
+const DRAG_THRESHOLD := 20.0
+
 var cell_rects: Array = []
 var target_rects: Array = []
 var back_rects: Array = []
