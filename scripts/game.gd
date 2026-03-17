@@ -681,7 +681,7 @@ func _try_drag_fold(from_cell: Vector2i, to_cell: Vector2i) -> bool:
 			continue
 		var mirror := GridModel.get_mirror_pos(fold_def, from_cell.y, from_cell.x, model.size)
 		if mirror == to_cell:
-			var entry := fold_def.duplicate()
+			var entry: Dictionary = fold_def.duplicate()
 			entry["_force_side"] = side
 			_on_fold_with_side(entry)
 			return true
