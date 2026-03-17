@@ -155,7 +155,9 @@ func _input(event: InputEvent) -> void:
 	if not visible:
 		return
 	if _waiting_for_action:
-		get_viewport().set_input_as_handled()
+		var step: Dictionary = _steps[_current_step]
+		if not step.get("allow_input", false):
+			get_viewport().set_input_as_handled()
 		return
 
 	if event is InputEventMouseButton:

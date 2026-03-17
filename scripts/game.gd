@@ -1032,6 +1032,11 @@ func _start_tutorial() -> void:
 		_cell_pos(3, 0) - Vector2(6, 6),
 		Vector2(CELL_SIZE + 12, CELL_SIZE + 12)
 	)
+	# Drag tutorial: highlight area covering right-half columns (cols 2-3), full height
+	var drag_area_rect := Rect2(
+		_cell_pos(2, 0) - Vector2(8, 8),
+		Vector2(2 * (CELL_SIZE + CELL_GAP) + 8, total + 16)
+	)
 
 	var steps: Array = [
 		{
@@ -1046,22 +1051,18 @@ func _start_tutorial() -> void:
 		},
 		{
 			"type": "INFO",
-			"text": "这是纸的背面。折叠时，正面的颜色会翻到背面。",
-			"highlight": back_rect,
+			"text": "虚线表示可以折叠的位置。",
+			"highlight": fold_line_rect,
 		},
 		{
 			"type": "INFO",
 			"text": "你有有限的折叠次数。用完之前要完成目标！",
 			"highlight": fold_label_rect,
 		},
-		{
-			"type": "INFO",
-			"text": "虚线表示可以折叠的位置。",
-			"highlight": fold_line_rect,
-		},
+		# === 第一步：点击折叠 ===
 		{
 			"type": "WAIT_CLICK",
-			"text": "点击左上角绿色闪烁的位置来开始折叠。",
+			"text": "先学点击折叠。点击左上角绿色闪烁的位置开始。",
 			"highlight": corner_rect,
 		},
 		{
@@ -1079,9 +1080,26 @@ func _start_tutorial() -> void:
 			"text": "",
 			"highlight": grid_rect,
 		},
+		# === 第二步：拖拽折叠 ===
 		{
 			"type": "INFO",
-			"text": "太棒了！你完成了第一次折叠！现在纸的正面已经和目标一样了。",
+			"text": "很好！现在来学习拖拽折叠。你可以从任意格子拖到折叠线对面的格子来折叠。",
+			"highlight": grid_rect,
+		},
+		{
+			"type": "WAIT_ACTION",
+			"text": "试试看！从上方的红色格子向下拖到对应的空格子。",
+			"highlight": drag_area_rect,
+			"allow_input": true,
+		},
+		{
+			"type": "WAIT_ACTION",
+			"text": "",
+			"highlight": grid_rect,
+		},
+		{
+			"type": "INFO",
+			"text": "太棒了！你学会了两种折叠方式：点击和拖拽，都可以完成折叠。",
 			"highlight": grid_rect,
 		},
 	]
