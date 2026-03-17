@@ -61,6 +61,7 @@ func start_level(data: Dictionary) -> void:
 	)
 	_build_all()
 	_refresh_grid()
+	_draw_corner_hints()
 
 
 func _build_all() -> void:
@@ -633,7 +634,7 @@ func _cancel_selection() -> void:
 	_selected_cell = Vector2i(-1, -1)
 	_target_map.clear()
 	_state = InteractionState.IDLE
-	_clear_highlights()
+	_draw_corner_hints()
 
 
 func _on_fold_with_side(fold_def_with_side: Dictionary) -> void:
@@ -666,6 +667,7 @@ func _animate_fold(fold_data: Dictionary) -> void:
 	_update_fold_label()
 	_state = InteractionState.IDLE
 	is_animating = false
+	_draw_corner_hints()
 
 	if model.check_win():
 		await get_tree().create_timer(0.5).timeout
@@ -860,6 +862,7 @@ func _on_undo() -> void:
 	model.undo()
 	_refresh_grid()
 	_update_fold_label()
+	_draw_corner_hints()
 
 
 func _on_reset() -> void:
@@ -870,6 +873,7 @@ func _on_reset() -> void:
 	model.reset()
 	_refresh_grid()
 	_update_fold_label()
+	_draw_corner_hints()
 
 
 func _show_back() -> void:
@@ -901,26 +905,31 @@ func _show_win() -> void:
 	win_panel.visible = true
 
 
+func _draw_corner_hints() -> void:
+	_clear_highlights()
+	var s := model.size
+	var corners := [Vector2i(0, 0), Vector2i(s - 1, 0), Vector2i(0, s - 1), Vector2i(s - 1, s - 1)]
+	for corner in corners:
+		if not _is_clickable_cell(corner.y, corner.x):
+			continue
+		var pos := _cell_pos(corner.x, corner.y)
+		var hint := ReferenceRect.new()
+		hint.position = pos - Vector2(3, 3)
+		hint.size = Vector2(CELL_SIZE + 6, CELL_SIZE + 6)
+		hint.border_color = CORNER_HINT_COLOR
+		hint.border_width = 4.0
+		hint.editor_only = false
+		hint.z_index = 20
+		add_child(hint)
+		_highlight_nodes.append(hint)
+		var tw := hint.create_tween()
+		tw.set_loops()
+		tw.tween_property(hint, "border_color:a", 0.2, 0.5)
+		tw.tween_property(hint, "border_color:a", 0.8, 0.5)
+
+
 func _draw_highlights() -> void:
 	_clear_highlights()
-	# Selected corner — green border
-	var sel_pos := _cell_pos(_selected_cell.x, _selected_cell.y)
-	var sel_border := ReferenceRect.new()
-	sel_border.position = sel_pos - Vector2(3, 3)
-	sel_border.size = Vector2(CELL_SIZE + 6, CELL_SIZE + 6)
-	sel_border.border_color = CORNER_HINT_COLOR
-	sel_border.border_width = 4.0
-	sel_border.editor_only = false
-	sel_border.z_index = 20
-	add_child(sel_border)
-	_highlight_nodes.append(sel_border)
-
-	# Green pulse on selected corner
-	var sel_tween := sel_border.create_tween()
-	sel_tween.set_loops()
-	sel_tween.tween_property(sel_border, "border_color:a", 0.2, 0.5)
-	sel_tween.tween_property(sel_border, "border_color:a", 0.8, 0.5)
-
 	# Target cells — gold glow with strong pulse
 	for target_cell in _target_map.keys():
 		var tgt_pos := _cell_pos(target_cell.x, target_cell.y)
