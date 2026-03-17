@@ -673,6 +673,21 @@ func _compute_targets(row: int, col: int) -> Dictionary:
 	return targets
 
 
+## Attempt to fold by matching drag start→end against available folds.
+func _try_drag_fold(from_cell: Vector2i, to_cell: Vector2i) -> bool:
+	for fold_def in model.available_folds:
+		var side := GridModel.get_fold_side(fold_def, from_cell.y, from_cell.x, model.size)
+		if side == -1:
+			continue
+		var mirror := GridModel.get_mirror_pos(fold_def, from_cell.y, from_cell.x, model.size)
+		if mirror == to_cell:
+			var entry := fold_def.duplicate()
+			entry["_force_side"] = side
+			_on_fold_with_side(entry)
+			return true
+	return false
+
+
 func _select_cell(cell: Vector2i) -> void:
 	_selected_cell = cell
 	_target_map = _compute_targets(cell.y, cell.x)
